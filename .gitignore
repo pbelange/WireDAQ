@@ -1,0 +1,5 @@
+acc-py/*
+py_wireDAQ/*
+Data/*
+.ipynb*
+__pycache*
