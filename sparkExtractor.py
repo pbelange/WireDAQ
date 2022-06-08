@@ -11,7 +11,7 @@ import Backend.NXCALS as nx
 # May 22 wire tests
 start_time = '2022-05-22 13:00'
 end_time   = '2022-05-22 17:30'
-savefile   = 'Data/dataset_2022_05_22.parquet'
+savefile   = 'Data_merged/dataset_2022_05_22.parquet'
 
 
 # April 8 wire tests
@@ -57,9 +57,8 @@ def SparkQuery(variable,start_time,end_time):
                 .variable(variable) \
                 .build().toPandas()
         except:
-            #df = pd.DataFrame(index=[pd.Timestamp(start_time)],columns = [_var])
-            df = pd.DataFrame(columns = [_var])
-            return df
+            # Return empty dataframe is error persists
+            return pd.DataFrame(index=[pd.Timestamp(start_time).tz_localize('UTC')],columns = [variable])
 
     # Converting to UTC time zone:
     df['nxcals_timestamp'] = df['nxcals_timestamp'].apply(lambda t: pd.Timestamp(t).tz_localize('UTC'))    
@@ -70,7 +69,11 @@ def SparkQuery(variable,start_time,end_time):
     # Extracting value
     df[variable] = df['nxcals_value']
     
-    return df[[variable]]
+    if len(df[[variable]]) == 0:
+        # For empty dataframe, making sure pd.concat() will go as expected
+        return pd.DataFrame(index=[pd.Timestamp(start_time).tz_localize('UTC')],columns = [variable])
+    else:     
+        return df[[variable]]
 #=============================================
 
 
@@ -79,10 +82,11 @@ def SparkQuery(variable,start_time,end_time):
 # EXTRACTING AND SAVING
 #=============================================
 data_list = []
-for _var in allvars:
+# convert to set to eliminate duplicates, then loop
+for _var in list(set(allvars)):
     data_list.append(SparkQuery(_var,start_time,end_time))
 
-data_df = pd.concat(data_list)    
+data_df = pd.concat(data_list,axis=1)    
     
 # Saving to parquet: 
 data_df.to_parquet(savefile, use_deprecated_int96_timestamps=True)

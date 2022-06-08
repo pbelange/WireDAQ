@@ -14,13 +14,19 @@ data = database[['RPMC.UL14.RBBCW.L1B1:I_MEAS','RPMC.UL14.RBBCW.L1B1:V_MEAS']].d
 display(wire)
 ```
 
-To make it easier to keep track of the units, a dedicated attribute can also be used:
-```python
-plt.ylabel(f"{wire.label['I']} [{wire.units['I']}]")
+The module also adds the `nxPlot()` method to Pandas dataframes, which gets rid of the `nans` and plots the chosen label, but otherwise works exactly in the same way as `plt.plot()`. To make it easier to keep track of the units, a dedicated attribute can also be used:
 
-# Yields the same as:
+```python
+plt.figure()
+database.nxPlot('index',wire['I'],'-o',ms=2,label = wire.loc + '.' + wire.label['I'])
+plt.xlabel('Time (UTC)')
+plt.ylabel(f"{wire.label['I']} [{wire.units['I']}]")
+# ----
+# The label call yields the same as
 plt.ylabel(f"Current [A]")
 ```
+
+
 
 
 

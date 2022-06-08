@@ -1,3 +1,25 @@
+
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+
+
+# Creating custom plotting function
+#=================================================
+from pandas.core.base import PandasObject
+def nxPlot(self,xlabel,ylabel, *args, **kwargs):
+    subset  = self.dropna(subset=[ylabel])
+    
+    if xlabel == 'index':    
+        plt.plot(subset.index,subset[ylabel], *args, **kwargs)
+    else:
+        plt.plot(subset[xlabel],subset[ylabel], *args, **kwargs)
+    
+PandasObject.nxPlot = nxPlot
+#=================================================
+
+
 class NXCALSWire():
     """ Class to keep track of the variable names used in NXCALS for the BBCW 
         
