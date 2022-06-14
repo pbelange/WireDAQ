@@ -1,5 +1,5 @@
 acc-py/*
 py_wireDAQ/*
 Data*/*
-*.ipynb*
+*.ipynb_checkpoint*
 *__pycache*
