@@ -19,6 +19,91 @@ def nxPlot(self,xlabel,ylabel, *args, **kwargs):
 PandasObject.nxPlot = nxPlot
 #=================================================
 
+# Function to extrac BPM Values and Mask
+#=================================================
+def getBPM_average(ts_start,ts_stop,df,beam):
+    subset = getBPM_df(df,beam,ts_start=ts_start,ts_stop=ts_stop)
+    
+    extracted_BPM =  {}
+    for plane in ['H','V']:
+        # Extracting BLM names and BLM values
+        key_names    = beam[f'BPMNames_{plane}']
+        key_selected = beam[f'BPMSelected_{plane}']
+        key_values   = beam[f'BPMPosition_{plane}']
+    
+        extracted_BPM[f'Timestamp']                         = (pd.Timestamp(ts_start).tz_localize('UTC'),
+                                                               pd.Timestamp(ts_stop).tz_localize('UTC'))
+        
+        extracted_BPM[f'Mask_{beam.name}_{plane}']          = subset[f'Mask_{beam.name}_{plane}'][0]
+        extracted_BPM[f'BPMValues_{beam.name}_{plane} [m]'] = subset[f'BPMValues_{beam.name}_{plane} [m]'].mean()
+    
+    return extracted_BPM
+    
+def getBPM_fromTs(timestamp,df,beam):
+    # Finding NEXT closest timestamp in data
+    obsTime = pd.Timestamp(timestamp).tz_localize('UTC')
+    indexList = df[beam[f'BPMPosition_H']].dropna().index
+    timeDelta = (indexList - obsTime).total_seconds()
+
+    closest = indexList[timeDelta>0][np.argmin(timeDelta[timeDelta>0])]
+
+    extracted_BPM =  {}
+    for plane in ['H','V']:
+        # Extracting BLM names and BLM values
+        key_names    = beam[f'BPMNames_{plane}']
+        key_selected = beam[f'BPMSelected_{plane}']
+        key_values   = beam[f'BPMPosition_{plane}']
+
+        BPMNames   = df[key_names].dropna().iloc[0]['elements']
+        BPMValues  = 1e-6*df[key_values].dropna().loc[closest]['elements']
+
+        # Creating mask from BLMSelected + Beam
+        beamFilter = pd.Series(BPMNames).str.contains(f'.{beam.name}')
+        selected   = df[key_selected].dropna().loc[closest]['elements']
+
+        mask = np.logical_and(np.array(selected),np.array(beamFilter))
+
+        extracted_BPM[f'Timestamp']                         = closest
+        extracted_BPM[f'Mask_{beam.name}_{plane}']          = np.char.lower(BPMNames[mask].astype(str))
+        extracted_BPM[f'BPMValues_{beam.name}_{plane} [m]'] = BPMValues[mask]
+        
+
+    return extracted_BPM
+
+
+def getBPM_df(df,beam,ts_start=None,ts_stop=None,loc=''):
+
+    df_BPM = pd.DataFrame({})
+    for plane in ['H','V']:
+        # Extracting BLM names and BLM values
+        key_names    = beam[f'BPMNames_{plane}']
+        key_selected = beam[f'BPMSelected_{plane}']
+        key_values   = beam[f'BPMPosition_{plane}']
+        
+        BPMNames   = df[key_names].dropna().iloc[0]['elements'].copy()
+        
+        if ts_start is not None:
+            assert(ts_stop is not None)
+            subset = df.loc[pd.Timestamp(ts_start).tz_localize('UTC'):pd.Timestamp(ts_stop).tz_localize('UTC')]
+        else:
+            subset = df
+            
+        BPMValues  = 1e-6*subset[key_values].dropna().apply(lambda line: np.array(line['elements']))
+        
+        # Creating mask from BLMSelected + Beam + Loc
+        beamFilter = pd.Series(BPMNames).str.contains(rf'(?=.*{beam.name})(?=.*{loc.upper()})',regex=True)
+        mask       = subset[key_selected].dropna().apply(lambda line:np.logical_and(line['elements'],np.array(beamFilter)))
+        mask.name  = f'Mask_{beam.name}_{plane}'
+
+        # Extracting values for the mask
+        extracted = pd.concat([BPMValues,mask],axis=1).apply(lambda line: line[key_values][line[mask.name]],axis=1)
+        extracted.name = f'BPMValues_{beam.name}_{plane} [m]'
+
+        # Saving results
+        df_BPM = pd.concat([df_BPM,mask.apply(lambda line: np.char.lower(BPMNames[line].astype(str))),extracted],axis=1)
+    
+    return df_BPM
+#=================================================
 
 class NXCALSWire():
     """ Class to keep track of the variable names used in NXCALS for the BBCW 
@@ -139,11 +224,14 @@ class NXCALSBeam():
         self.Intensity = f'LHC.BCTDC.A6R4.{self.name}:BEAM_INTENSITY'
         
         # BPM
-        self.Position_H = 'BFC.LHC:OrbitAcq:positionsH'
-        self.Position_V = 'BFC.LHC:OrbitAcq:positionsV'
+        self.BPMPosition_H    = 'BFC.LHC:OrbitAcq:positionsH'
+        self.BPMPosition_V    = 'BFC.LHC:OrbitAcq:positionsV'
         
-        self.BPM_H      = 'BFC.LHC:OrbitAcq:bpmSelectedH'
-        self.BPM_V      = 'BFC.LHC:OrbitAcq:bpmSelectedV'
+        self.BPMSelected_H = 'BFC.LHC:OrbitAcq:bpmSelectedH'
+        self.BPMSelected_V = 'BFC.LHC:OrbitAcq:bpmSelectedV'
+        
+        self.BPMNames_H    = 'BFC.LHC:Mappings:fBPMNames_h'
+        self.BPMNames_V    = 'BFC.LHC:Mappings:fBPMNames_v'
         
         
         # Tune
