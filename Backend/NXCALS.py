@@ -22,6 +22,13 @@ PandasObject.nxPlot = nxPlot
 # Function to extrac BPM Values and Mask
 #=================================================
 def getBPM_average(ts_start,ts_stop,df,beam):
+    
+    # Ensuring consistent ts format
+    if pd.Timestamp(ts_start).tzinfo is None:
+        ts_start = pd.Timestamp(ts_start).tz_localize('UTC')
+    if pd.Timestamp(ts_stop).tzinfo is None:
+        ts_stop = pd.Timestamp(ts_stop).tz_localize('UTC')
+        
     subset = getBPM_df(df,beam,ts_start=ts_start,ts_stop=ts_stop)
     
     extracted_BPM =  {}
@@ -31,9 +38,15 @@ def getBPM_average(ts_start,ts_stop,df,beam):
         key_selected = beam[f'BPMSelected_{plane}']
         key_values   = beam[f'BPMPosition_{plane}']
     
-        extracted_BPM[f'Timestamp']                         = (pd.Timestamp(ts_start).tz_localize('UTC'),
-                                                               pd.Timestamp(ts_stop).tz_localize('UTC'))
-        
+
+        # Ensuring that all lengths are compatible for the mean
+        vectorLengths = subset[f'BPMValues_{beam.name}_{plane} [m]'].apply(lambda line:len(line))
+        vectorLengths.loc[np.abs((vectorLengths-int(np.mean(vectorLengths))))>1] = np.nan
+        # returning an error if more than 5% of the data is dropped
+        assert(((len(vectorLengths) - len(vectorLengths.dropna()))/len(vectorLengths) <0.05))
+        subset = subset.loc[vectorLengths.dropna().index]
+    
+        extracted_BPM[f'Timestamp']                         = (ts_start,ts_stop)
         extracted_BPM[f'Mask_{beam.name}_{plane}']          = subset[f'Mask_{beam.name}_{plane}'][0]
         extracted_BPM[f'BPMValues_{beam.name}_{plane} [m]'] = subset[f'BPMValues_{beam.name}_{plane} [m]'].mean()
     
@@ -41,9 +54,11 @@ def getBPM_average(ts_start,ts_stop,df,beam):
     
 def getBPM_fromTs(timestamp,df,beam):
     # Finding NEXT closest timestamp in data
-    obsTime = pd.Timestamp(timestamp).tz_localize('UTC')
+    if pd.Timestamp(timestamp).tzinfo is None:
+        timestamp = pd.Timestamp(timestamp).tz_localize('UTC')
+        
     indexList = df[beam[f'BPMPosition_H']].dropna().index
-    timeDelta = (indexList - obsTime).total_seconds()
+    timeDelta = (indexList - timestamp).total_seconds()
 
     closest = indexList[timeDelta>0][np.argmin(timeDelta[timeDelta>0])]
 
@@ -84,7 +99,13 @@ def getBPM_df(df,beam,ts_start=None,ts_stop=None,loc=''):
         
         if ts_start is not None:
             assert(ts_stop is not None)
-            subset = df.loc[pd.Timestamp(ts_start).tz_localize('UTC'):pd.Timestamp(ts_stop).tz_localize('UTC')]
+            # Ensuring consistent ts format
+            if pd.Timestamp(ts_start).tzinfo is None:
+                ts_start = pd.Timestamp(ts_start).tz_localize('UTC')
+            if pd.Timestamp(ts_stop).tzinfo is None:
+                ts_stop = pd.Timestamp(ts_stop).tz_localize('UTC')
+
+            subset = df.loc[ts_start:ts_stop]
         else:
             subset = df
             
