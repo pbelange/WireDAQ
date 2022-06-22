@@ -2,13 +2,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.append('py_wireDAQ/lhcmask/python_examples/run3_collisions_wire')
+sys.path.append('/home/pbelange/abp/WireDAQ/py_wireDAQ/lhcmask/python_examples/run3_collisions_wire')
 
 import bbcw as bbcw
 from cpymad.madx import Madx
 
 
-def fromOptics(opticsFile = 'opticsfile.1'):
+def fromOptics(opticsFile = 'opticsfile.1',saveToFolder = None):
 
     # Importing LHC sequences:
     mad = Madx()
@@ -31,6 +31,17 @@ def fromOptics(opticsFile = 'opticsfile.1'):
         mad.twiss()
         twiss[seq[-2:].upper()] = mad.table['twiss'].dframe()
     mad.input('stop;')
+    
+    if saveToFolder is not None:
+        for beam in ['B1','B2']:
+            twiss[beam].to_pickle(f"{saveToFolder}/opticsfile{opticsFile.split('.')[-1]}_{beam}_twiss.pkl")
 
     return twiss
-    
+
+
+def fromPkl(folder,opticsFile = 'opticsfile.1'):
+    twiss = {}
+    for beam in ['B1','B2']:
+         twiss[beam] = pd.read_pickle(f"{folder}/opticsfile{opticsFile.split('.')[-1]}_{beam}_twiss.pkl")
+
+    return twiss
