@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
-sys.path.append('/home/pbelange/abp/WireDAQ/py_wireDAQ/lhcmask/python_examples/run3_collisions_wire')
+sys.path.append('/home/phbelang/abp/WireDAQ/py_wireDAQ/lhcmask/python_examples/run3_collisions_wire')
 
 import bbcw as bbcw
 from cpymad.madx import Madx
@@ -13,8 +13,8 @@ def fromOptics(opticsFile = 'opticsfile.1',saveToFolder = None):
     # Importing LHC sequences:
     mad = Madx()
     mad.option(echo = True, warn = True)
-    mad.call(file='/afs/cern.ch/eng/acc-models/lhc/current/lhc.seq')
-    mad.call(file=f'/afs/cern.ch/eng/lhc/optics/runIII/RunIII_dev/2021_V6/PROTON/{opticsFile}')
+    mad.call(file='acc-models-lhc/lhc.seq')
+    mad.call(file=f'py_wireDAQ/optics/2021_V6/PROTON/{opticsFile}')
 
     # Installing wires
     for seq,bv in zip(['lhcb1','lhcb2'],[1,-1]):

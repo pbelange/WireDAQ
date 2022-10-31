@@ -3,7 +3,7 @@
 ## About
 The main tools of this package in `Backend/NXCALS` are a serie of classes used to regroup the NXCALS variable names for BBLR wires and the beam. The idea is to be able to conveniently extract the data from a dataframe following:
 ```python
-import Backend.NXCALSWire as nx
+import Backend.NXCALS as nx
 wire = nx.NXCALSWire(loc = 'L1B1')
 data = database[[wire['I'],wire['V']]].dropna()
 

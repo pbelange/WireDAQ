@@ -4,21 +4,6 @@ import numpy as np
 import pandas as pd
 
 
-
-# Creating custom plotting function
-#=================================================
-from pandas.core.base import PandasObject
-def nxPlot(self,xlabel,ylabel, *args, **kwargs):
-    subset  = self.dropna(subset=[ylabel])
-    
-    if xlabel == 'index':    
-        plt.plot(subset.index,subset[ylabel], *args, **kwargs)
-    else:
-        plt.plot(subset[xlabel],subset[ylabel], *args, **kwargs)
-    
-PandasObject.nxPlot = nxPlot
-#=================================================
-
 # Function to extrac BPM Values and Mask
 #=================================================
 def getBPM_average(ts_start,ts_stop,df,beam):
@@ -240,9 +225,33 @@ class NXCALSBeam():
         
         # Variable names for measured quantities:
         #---------------------------------------------------
-        
+        self.Luminosity    = { 'ATLAS' : 'ATLAS:LUMI_TOT_INST',
+                               'ALICE' : 'ALICE:LUMI_TOT_INST',
+                               'CMS'   : 'CMS:LUMI_TOT_INST',
+                               'LHCB'  : 'LHCB:LUMI_TOT_INST'}
+        self.bb_Luminosity = { 'ATLAS' : 'ATLAS:BUNCH_LUMI_INST',
+                               'ALICE' : 'ALICE:BUNCH_LUMI_INST',
+                               'CMS'   : 'CMS:BUNCH_LUMI_INST',
+                               'LHCB'  : 'LHCB:BUNCH_LUMI_INST'}
+
+
+
+
+        # Bunches
+        self.Nb = f'LHC.BQM.{self.name}:NO_BUNCHES'
+
+
         # Intensity
-        self.Intensity = f'LHC.BCTDC.A6R4.{self.name}:BEAM_INTENSITY'
+        self.Intensity    = f'LHC.BCTDC.A6R4.{self.name}:BEAM_INTENSITY'
+        self.bb_Intensity = f'LHC.BCTFR.A6R4.{self.name}:BUNCH_INTENSITY'
+
+        self.Intensity_B    = f'LHC.BCTDC.B6R4.{self.name}:BEAM_INTENSITY'
+        self.bb_Intensity_B = f'LHC.BCTFR.B6R4.{self.name}:BUNCH_INTENSITY'
+
+        # Emittance
+        _loc_fmt = {'B1':'5R4.B1','B2':'5L4.B2'}[self.name]
+        self.bb_Emittance_H = f'LHC.BSRT.{_loc_fmt}:BUNCH_EMITTANCE_H'
+        self.bb_Emittance_V = f'LHC.BSRT.{_loc_fmt}:BUNCH_EMITTANCE_V'
         
         # BPM
         self.BPMPosition_H    = 'BFC.LHC:OrbitAcq:positionsH'
@@ -267,12 +276,16 @@ class NXCALSBeam():
         self.units = {'Qx'      :'',
                       'Qy'      :'',
                       'Qx_HS'   :'',
-                      'Qy_HS'   :''}
+                      'Qy_HS'   :'',
+                      'Luminosity': 'Hz/ub',
+                      'Intensity':'protons'}
         
         self.label = {'Qx'      :r'$Q_x$',
                       'Qy'      :r'$Q_y$',
                       'Qx_HS'   :r'$Q_x$',
-                      'Qy_HS'   :r'$Q_y$'}
+                      'Qy_HS'   :r'$Q_y$',
+                      'Luminosity': 'Luminosity',
+                      'Intensity':'Intensity'}
         
     def __getitem__(self, item):
         return getattr(self, item)
