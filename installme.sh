@@ -12,6 +12,10 @@ python -m venv ./Executables/py_WireDAQ
 source ./Executables/py_WireDAQ/bin/activate
 
 
+# Install acc-py and NXCALS
+python -m pip install git+https://gitlab.cern.ch/acc-co/devops/python/acc-py-pip-config.git
+python -m pip install --no-cache nxcals 
+
 # Install generic python packages
 #========================================
 pip install jupyterlab
@@ -26,6 +30,7 @@ pip install ruamel.yaml
 pip install rich
 pip install lfm
 pip install pynaff
+pip install pynumdiff
 
 # Adding the jupyter kernel to the list of kernels
 python -m ipykernel install --user --name py_WireDAQ --display-name "py_WireDAQ"
