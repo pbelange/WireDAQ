@@ -115,12 +115,14 @@ def compute_all_xsection(parquetfile_BCTF,parquetfile_dblm):
 
 
 
-    # Computing effective cross section, both raw and smoothed 
+    # Computing effective cross section,
     xsection_BCTF = {}
     for beam in beams:
         xsection_BCTF[beam.name] = sEff.compute_lifetime_xsection(database,beam)
 
 
+    # Importing dblm data
+    #===============================
     var_needed = [_var for _var in beams[0]._getVarList()+beams[1]._getVarList() if 'BLMD' in _var]
     dblm = sEff.parquet2df(parquetfile_dblm,columns=var_needed)  
 
