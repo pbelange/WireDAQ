@@ -210,20 +210,13 @@ class NXCALSWire():
         return rep
 
         
-                    
+class NXCALSLHC():
 
-            
-class NXCALSBeam():
-    """ Class to keep track of the variable names used in NXCALS for the Beam 
-        
-        
-    
-    """
     def __init__(self,name=None):
         
-        self.name = name.upper()
+        self.name = 'LHC'
         
-        # Variable names for measured quantities:
+        # LUMI
         #---------------------------------------------------
         self.Luminosity    = { 'ATLAS' : 'ATLAS:LUMI_TOT_INST',
                                'ALICE' : 'ALICE:LUMI_TOT_INST',
@@ -235,6 +228,63 @@ class NXCALSBeam():
                                'LHCB'  : 'LHCB:BUNCH_LUMI_INST'}
 
 
+        # Crossing angles
+        self.Xing      = {  'IP1' : 'LhcStateTracker:LHCBEAM:IP1-XING-V-MURAD:target',
+                            'IP5' : 'LhcStateTracker:LHCBEAM:IP5-XING-H-MURAD:target'}
+
+
+        self.betastar  = {  'IP1' :'HX:BETASTAR_IP1',
+                            'IP2' :'HX:BETASTAR_IP2',
+                            'IP5' :'HX:BETASTAR_IP5',
+                            'IP8' :'HX:BETASTAR_IP8'}
+
+        self.Fill       = 'HX:FILLN'
+        self.Inj_Scheme = 'LHC.STATS:LHC:INJECTION_SCHEME'
+        self.Bmode      = 'HX:BMODE'
+        
+        # BPM
+        #---------------------------------------------------
+        self.BPMPosition_H    = 'BFC.LHC:OrbitAcq:positionsH'
+        self.BPMPosition_V    = 'BFC.LHC:OrbitAcq:positionsV'
+        
+        self.BPMSelected_H = 'BFC.LHC:OrbitAcq:bpmSelectedH'
+        self.BPMSelected_V = 'BFC.LHC:OrbitAcq:bpmSelectedV'
+        
+        self.BPMNames_H    = 'BFC.LHC:Mappings:fBPMNames_h'
+        self.BPMNames_V    = 'BFC.LHC:Mappings:fBPMNames_v'
+        
+        
+        # Keeping track of the units
+        self.units = {'Luminosity' : 'Hz/ub',
+                      'Xing'       : 'urad'}
+        
+        self.label = {'Luminosity' : 'Luminosity',
+                      'Xing'       : 'Xing'}
+        
+    def __getitem__(self, item):
+        return getattr(self, item)
+
+    def _getVarList(self):
+        varlist = []
+        for attr in dir(self):
+            if (attr[0]!='_')&(attr not in 'label,loc,name,units'):
+                if type(self[attr]) is dict:
+                    varlist += list(self[attr].values())
+                else:
+                    varlist += [self[attr]]
+        return varlist
+           
+
+            
+class NXCALSBeam():
+    """ Class to keep track of the variable names used in NXCALS for the Beam 
+        
+        
+    
+    """
+    def __init__(self,name=None):
+        
+        self.name = name.upper()
 
 
         # Bunches
@@ -248,22 +298,12 @@ class NXCALSBeam():
         self.Intensity_B    = f'LHC.BCTDC.B6R4.{self.name}:BEAM_INTENSITY'
         self.bb_Intensity_B = f'LHC.BCTFR.B6R4.{self.name}:BUNCH_INTENSITY'
 
+
         # Emittance
         _loc_fmt = {'B1':'5R4.B1','B2':'5L4.B2'}[self.name]
         self.bb_Emittance_H = f'LHC.BSRT.{_loc_fmt}:BUNCH_EMITTANCE_H'
         self.bb_Emittance_V = f'LHC.BSRT.{_loc_fmt}:BUNCH_EMITTANCE_V'
-        
-        # BPM
-        self.BPMPosition_H    = 'BFC.LHC:OrbitAcq:positionsH'
-        self.BPMPosition_V    = 'BFC.LHC:OrbitAcq:positionsV'
-        
-        self.BPMSelected_H = 'BFC.LHC:OrbitAcq:bpmSelectedH'
-        self.BPMSelected_V = 'BFC.LHC:OrbitAcq:bpmSelectedV'
-        
-        self.BPMNames_H    = 'BFC.LHC:Mappings:fBPMNames_h'
-        self.BPMNames_V    = 'BFC.LHC:Mappings:fBPMNames_v'
-        
-        
+
         # Tune
         self.Qx = f'LHC.BQBBQ.CONTINUOUS.{self.name}:TUNE_H'
         self.Qy = f'LHC.BQBBQ.CONTINUOUS.{self.name}:TUNE_V'
@@ -271,6 +311,16 @@ class NXCALSBeam():
         self.Qx_HS = f'LHC.BQBBQ.CONTINUOUS_HS.{self.name}:TUNE_H'
         self.Qy_HS = f'LHC.BQBBQ.CONTINUOUS_HS.{self.name}:TUNE_V'
        
+
+        # dBLM 
+        _loc_fmt = {'B1':'.3','B2':'.5'}[self.name]
+        _dBLM    = {    'V'     : f'HC.TZ76.BLMDIAMOND2{_loc_fmt}',
+                        'H-V-S' : f'HC.TZ76.BLMDIAMOND3{_loc_fmt}'}
+        self.dBLM     = {   'V'     : f'{_dBLM["V"]}:AcquisitionIntegral:intSumBuf0',
+                            'H-V-S' : f'{_dBLM["H-V-S"]}:AcquisitionIntegral:intSumBuf0'}
+        self.dBLM_Amp = {   'V'     : f'{_dBLM["V"]}:AcquisitionIntegral:intSumBuf1',
+                            'H-V-S' : f'{_dBLM["H-V-S"]}:AcquisitionIntegral:intSumBuf1'}
+
     
         # Keeping track of the units
         self.units = {'Qx'      :'',

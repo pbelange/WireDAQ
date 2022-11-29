@@ -10,10 +10,11 @@ import pandas as pd
 from pandas.core.base import PandasObject
 
 
+TZONE = 'Europe/Paris'
 # General function
 def ensure_tz(ts):
     if pd.Timestamp(ts).tzinfo is None:
-        ts = pd.Timestamp(ts).tz_localize('UTC')
+        ts = pd.Timestamp(ts).tz_localize(TZONE)
     return ts
 
 
@@ -34,30 +35,47 @@ PandasObject.nxPlot = nxPlot
 
 # Querry data
 #=================================================
-def at_idx(self,target,_var,method='nearest',return_idx=False):
+def at_idx(self,target,_var=None,method='nearest',return_idx=False):
     pdMethod = {'nearest':'nearest','previous':'pad','next':'backfill'}[method]
     
-    _idx = self.index[self.index.get_loc(target, method=pdMethod)]
-
-    if return_idx:
-        return _idx,self.loc[_idx,_var]
+    if isinstance(target,(list,type(np.array([])))):
+        _idx = self.index[self.index.get_indexer(target, method=pdMethod)]
     else:
-        return self.loc[_idx,_var]
+        _idx = self.index[self.index.get_indexer([target], method=pdMethod)][0]
 
-def at_ts(self,target,_var,method='nearest',return_ts=False):
+    if isinstance(self,(pd.core.series.Series)):
+        if return_idx:
+            return _idx,self.loc[_idx]
+        else:
+            return self.loc[_idx]
+    else:
+        if return_idx:
+            return _idx,self.loc[_idx,_var]
+        else:
+            return self.loc[_idx,_var]
+
+def at_ts(self,target,_var=None,method='nearest',return_ts=False):
     pdMethod = {'nearest':'nearest','previous':'pad','next':'backfill'}[method]
     
     target = ensure_tz(target)
 
-    self_cp = self.dropna(subset=[_var])
-    self_cp.set_index('Timestamp',inplace=True)
+    self_cp = self.set_index('Timestamp',inplace=False)
 
-    _ts = self_cp.index[self_cp.index.get_loc(target, method=pdMethod)]
-
-    if return_ts:
-        return _ts,self_cp.loc[_ts,_var]
+    if isinstance(target,(list,type(np.array([])))):
+        _ts = self_cp.index[self_cp.index.get_indexer(target, method=pdMethod)]
     else:
-        return self_cp.loc[_ts,_var]
+        _ts = self_cp.index[self_cp.index.get_indexer([target], method=pdMethod)][0]
+
+    if isinstance(self,(pd.core.series.Series)):
+        if return_ts:
+            return _ts,self_cp.loc[_ts]
+        else:
+            return self_cp.loc[_ts]
+    else:
+        if return_ts:
+            return _ts,self_cp.loc[_ts,_var]
+        else:
+            return self_cp.loc[_ts,_var]
 
 PandasObject.at_idx = at_idx
 PandasObject.at_ts  = at_ts
@@ -81,7 +99,7 @@ def bin(self,_var,window=None,bins=None):
 
     # UNPACKING RESULTS
     bin_unix      = (bin_time - sub.iloc[0]['Time'])*1e9 + sub.index[0]
-    bin_timestamp = [pd.Timestamp(t).tz_localize('UTC') for t in bin_unix]
+    bin_timestamp = [pd.Timestamp(t).tz_localize('UTC').tz_convert(TZONE) for t in bin_unix]
     
 
     return pd.DataFrame({'unix':bin_unix,'Timestamp':bin_timestamp,'Time':bin_time,_var:values})

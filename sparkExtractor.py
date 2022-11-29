@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
 
-import Backend.NXCALS as nx
+import Backend.NXCALS_V2 as nx
 
 
 #=============================================
@@ -9,9 +9,9 @@ import Backend.NXCALS as nx
 #=============================================
 
 # May 22 wire tests
-start_time = '2022-05-22 13:00'
-end_time   = '2022-05-22 17:30'
-savefile   = 'Data_merged/dataset_2022_05_22.parquet'
+start_time = '2022-08-20 08:27:50'
+end_time   = '2022-08-20 20:30:44'
+savefile   = 'Dumps_data/F8146.parquet'
 
 
 # April 8 wire tests
@@ -30,6 +30,10 @@ for loc in ['L1B1','R1B2','L5B1','R5B2']:
 for name in ['B1','B2']:
     beam = nx.NXCALSBeam(name)
     allvars += beam._getVarList()
+    
+# for name in ['B1','B2']:
+#     LHC = nx.NXCALSLHC()
+#     allvars += LHC._getVarList()
 #=============================================
 
     
