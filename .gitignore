@@ -1,5 +1,7 @@
-acc-py/*
-py_wireDAQ/*
-Data*/*
+Executables/**
 *.ipynb_checkpoint*
 *__pycache*
+*.c
+*.o
+*.log
+*user.home*

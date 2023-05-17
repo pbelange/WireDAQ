@@ -1,56 +1,28 @@
-                                              
-# Download acc models
-git clone https://gitlab.cern.ch/acc-models/acc-models-lhc.git
-
-# Copying relevant optics files over ssh:
-rsync -rv phbelang@lxplus.cern.ch:/afs/cern.ch/eng/lhc/optics/runIII/RunIII_dev/2021_V6 py_wireDAQ/optics
-
-
-# from http://bewww.cern.ch/ap/acc-py/installers/              
-wget http://bewww.cern.ch/ap/acc-py/installers/acc-py-2020.11-installer.sh      
-                      
-bash ./acc-py-2020.11-installer.sh -p ./acc-py/base/2020.11/ -b    
-           
-# activate some acc-py python distribution:                 
-source ./acc-py/base/2020.11/setup.sh       
-                   
-# create your own virtual environment in the folder "py_tn":       
-acc-py venv py_wireDAQ       
-                    
-# activate your new environment    
-source ./py_wireDAQ/bin/activate   
-   
-# and finish it with nxcals          
-python -m pip install jupyterlab nxcals
-
-# Add cpymad
-pip install cpymad
-
-# Add lhcmask and xsuite
-#git clone --single-branch --branch feature/wire_3.0 https://github.com/pbelange/lhcmask.git py_wireDAQ/lhcmask
-git clone https://github.com/lhcopt/lhcmask.git py_wireDAQ/lhcmask
-pip install -e py_wireDAQ/lhcmask
-
-git clone https://github.com/xsuite/xobjects py_wireDAQ/xobjects
-pip install -e py_wireDAQ/xobjects
-
-git clone https://github.com/xsuite/xdeps py_wireDAQ/xdeps
-pip install -e py_wireDAQ/xdeps
-
-git clone https://github.com/xsuite/xpart py_wireDAQ/xpart
-pip install -e py_wireDAQ/xpart
-
-git clone https://github.com/xsuite/xtrack py_wireDAQ/xtrack
-pip install -e py_wireDAQ/xtrack
-
-git clone https://github.com/xsuite/xfields py_wireDAQ/xfields
-pip install -e py_wireDAQ/xfields
-
-git clone https://github.com/PyCOMPLETE/FillingPatterns.git py_wireDAQ/FillingPatterns
-pip install -e py_wireDAQ/FillingPatterns
+                         
+# installing conda
+mkdir ./Executables
+if [ "$(uname)" == "Darwin" ]; then
+    # Do something under Mac OS X platform
+    if [ "$(uname -m)" == "x86_64" ]; then
+        wget -O ./Executables/Miniconda3-latest.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-x86_64.sh
+    elif [ "$(uname -m)" == "arm64" ]; then
+        wget -O ./Executables/Miniconda3-latest.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-MacOSX-arm64.sh
+    fi
+elif [ "$(uname)" == "Linux" ]; then
+    # Do something under Linux platform
+    wget -O ./Executables/Miniconda3-latest.sh https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+fi
+bash ./Executables/Miniconda3-latest.sh -b  -p ./Executables/miniconda -f
 
 
-# Additionnal packages
+# create your own virtual environment in a new folder
+source ./Executables/miniconda/bin/activate
+python -m venv ./Executables/py_wireDAQ
+source ./Executables/py_wireDAQ/bin/activate
+
+
+# Install generic python packages
+#========================================
 pip install jupyterlab
 pip install ipywidgets
 pip install PyYAML
@@ -61,16 +33,27 @@ pip install scipy
 pip install ipympl
 pip install ruamel.yaml
 pip install rich
-
-# Removing the installer
-rm acc-py-2020.11-installer.sh
-
-
-# Modifying xtrack for python 3.7.9 compatibility
-sed -i "s|{i_aper_1=}, {i_aper_0=}|i_aper_1={i_aper_1}, i_aper_0={i_aper_0}|" py_wireDAQ/xtrack/xtrack/loss_location_refinement/loss_location_refinement.py
-sed -i "s|{presence_shifts_rotations=}|presence_shifts_rotations={presence_shifts_rotations}|" py_wireDAQ/xtrack/xtrack/loss_location_refinement/loss_location_refinement.py
-sed -i "s|{iteration=}|iteration={iteration}|" py_wireDAQ/xtrack/xtrack/loss_location_refinement/loss_location_refinement.py
-
+pip install lfm
+pip install pynaff
+pip install NAFFlib
+pip install dask
 
 # Adding the jupyter kernel to the list of kernels
 python -m ipykernel install --user --name py_wireDAQ --display-name "py_wireDAQ"
+#========================================
+
+
+# Install CERN packages
+#=========================================
+git clone https://gitlab.cern.ch/mrufolo/fillingstudies.git ./Executables/py_wireDAQ/fillingstudies
+pip install -e ./Executables/py_wireDAQ/fillingstudies
+
+# Install acc-py and NXCALS
+python -m pip install git+https://gitlab.cern.ch/acc-co/devops/python/acc-py-pip-config.git
+python -m pip install --no-cache nxcals 
+
+git clone https://gitlab.cern.ch/lhclumi/lumi-followup.git ./Executables/py_wireDAQ/lumi-followup
+pip install -e ./Executables/py_wireDAQ/lumi-followup/nx2pd
+#=========================================                     
+
+
