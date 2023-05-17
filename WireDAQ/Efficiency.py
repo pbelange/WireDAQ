@@ -5,8 +5,9 @@ import scipy.interpolate as sciInterp
 from pathlib import Path
 
 import pynumdiff
-import fillingpatterns as fp
+# import fillingpatterns as fp
 
+import WireDAQ.Constants as cst
 import WireDAQ.NXCALS as nx
 # Make sure this import is after pandas
 import WireDAQ.PandasPlus
@@ -20,11 +21,8 @@ beams     = [nx.NXCALSBeam(name) for name in ['B1','B2']]
 LHC       = nx.NXCALSLHC()
 buckets   = np.arange(3564)
 
-# SIG_PP = 80e-3
-SIG_PP = 75e-3
-
-
-TZONE = 'Europe/Paris'
+SIG_PP = cst.SIG_PP
+TZONE  = cst.TZONE
 
 def importFILL(FILL,DATA_PATH = '/home/lumimod/2022_07_26_NXCALS/2022_v3'):
 

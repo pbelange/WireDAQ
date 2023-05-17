@@ -48,6 +48,9 @@ LHC_W_BEAM_SCREEN = 46.5e-3                         # Width of the beam screen [
 LHC_ALPHA_BEAM_SCREEN = 52.4                        # Angle of the end of the flat part [deg]
 LHC_BETA_BEAM_SCREEN = 37.6                        	# Complimentary to alpha [deg]
 
+SIG_PP = 80e-3                                      # Proton-proton cross section [barn]           
+TZONE  = 'Europe/Paris'                             # Time zone for the LHC      
+
 # Cross sectional area of the beam screen:
 LHC_AREA_BEAM_SCREEN = np.pi*(LHC_W_BEAM_SCREEN/2)**2*(1-4*LHC_BETA_BEAM_SCREEN/360) + LHC_W_BEAM_SCREEN*np.sin(np.deg2rad(LHC_BETA_BEAM_SCREEN))*LHC_H_BEAM_SCREEN/2
 

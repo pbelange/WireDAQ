@@ -185,9 +185,13 @@ class NXCALSWire():
     def __getitem__(self, item):
         return getattr(self, item)
     
-    def _getVarList(self):
+    def _getVarList(self,subset = None):
         varlist = []
-        for attr in dir(self):
+        if subset is None:
+            lookfor = dir(self)
+        else:
+            lookfor = subset
+        for attr in lookfor:
             if (attr[0]!='_')&(attr not in 'label,loc,name,units'):
                 if type(self[attr]) is dict:
                     varlist += list(self[attr].values())
@@ -264,9 +268,13 @@ class NXCALSLHC():
     def __getitem__(self, item):
         return getattr(self, item)
 
-    def _getVarList(self):
+    def _getVarList(self,subset = None):
         varlist = []
-        for attr in dir(self):
+        if subset is None:
+            lookfor = dir(self)
+        else:
+            lookfor = subset
+        for attr in lookfor:
             if (attr[0]!='_')&(attr not in 'label,loc,name,units'):
                 if type(self[attr]) is dict:
                     varlist += list(self[attr].values())
@@ -290,6 +298,8 @@ class NXCALSBeam():
         # Bunches
         self.Nb = f'LHC.BQM.{self.name}:NO_BUNCHES'
 
+        # Filled Buckets
+        self.Filled_b = f'LHC.BQM.{self.name}:FILLED_BUCKETS'
 
         # Intensity
         self.Intensity    = f'LHC.BCTDC.A6R4.{self.name}:BEAM_INTENSITY'
@@ -340,9 +350,13 @@ class NXCALSBeam():
     def __getitem__(self, item):
         return getattr(self, item)
 
-    def _getVarList(self):
+    def _getVarList(self,subset = None):
         varlist = []
-        for attr in dir(self):
+        if subset is None:
+            lookfor = dir(self)
+        else:
+            lookfor = subset
+        for attr in lookfor:
             if (attr[0]!='_')&(attr not in 'label,loc,name,units'):
                 if type(self[attr]) is dict:
                     varlist += list(self[attr].values())
