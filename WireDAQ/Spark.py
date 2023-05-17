@@ -7,7 +7,7 @@ import pandas as pd
 
 # NXCALS imports
 #---------
-import nx2pd as nx 
+import nx2pd 
 from nxcals.spark_session_builder import get_or_create, Flavor
 #---------
 
@@ -38,7 +38,7 @@ class SparkSession():
                                         'spark.executor.instances'  : '20',
                                         'spark.executor.cores'      : '2',
                                         })
-        self.spark  = nx.SparkIt(_spark)
+        self.spark  = nx2pd.SparkIt(_spark)
         logging.info('Spark instance created.')
 
     # To standardize the timestamp from chosen TZONE
@@ -61,7 +61,7 @@ class SparkSession():
 
     # Querrying list of variables between start_time and end_time
     #------------------------------------------------
-    def query(self,variables,start_time=None,end_time=None,fill=None):
+    def query(self,start_time=None,end_time=None,fill=None,variables = None):
         if all(_v is None for _v in [start_time,end_time,fill]):
             raise ValueError('At least one of start_time, end_time or fill must be provided.')
         if fill is not None:
@@ -79,8 +79,8 @@ class SparkSession():
             _df = self.spark.nxcals_df( data    =[_var['name']], 
                                         t0      = start_time,
                                         t1      = end_time,
-                                        pandas_processing   = [ nx.pandas_get, 
-                                                                nx.pandas_pivot])
+                                        pandas_processing   = [ nx2pd.pandas_get, 
+                                                                nx2pd.pandas_pivot])
 
             # Cleaning the data
             for _column, _type in zip(_df.columns,_df.dtypes):
