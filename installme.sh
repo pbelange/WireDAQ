@@ -38,6 +38,7 @@ pip install pynaff
 pip install NAFFlib
 pip install dask
 pip install pynumdiff
+pip install bokeh
 
 # Adding the jupyter kernel to the list of kernels
 python -m ipykernel install --user --name py_wireDAQ --display-name "py_wireDAQ"
@@ -47,7 +48,7 @@ python -m ipykernel install --user --name py_wireDAQ --display-name "py_wireDAQ"
 # Install CERN packages
 #=========================================
 git clone https://gitlab.cern.ch/mrufolo/fillingstudies.git ./Executables/py_wireDAQ/fillingstudies
-pip install -e ./Executables/py_wireDAQ/fillingstudies
+#pip install -e ./Executables/py_wireDAQ/fillingstudies
 
 # Install acc-py and NXCALS
 python -m pip install git+https://gitlab.cern.ch/acc-co/devops/python/acc-py-pip-config.git
