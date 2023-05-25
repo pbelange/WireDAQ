@@ -4,4 +4,5 @@ Executables/**
 *.c
 *.o
 *.log
+*.html
 *user.home*
