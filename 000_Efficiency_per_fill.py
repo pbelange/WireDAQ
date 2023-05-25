@@ -28,6 +28,9 @@ b_slots   = np.arange(3564)
 
 # Setting default values
 #------------------------------------------------
+_default_fig_width  = 2000
+_default_fig_height = 400
+
 _default_device = 'DBLM'
 
 _default_import = 'local'
@@ -85,9 +88,15 @@ def Efficiency_to_HTML(FILL, device=_default_device, HTML_name=None, import_from
     # LAYOUT
     #=====================================
 
+    # Adjusting canvas size:
+    for name,_fig in BOKEH_FIGS.items():
+        _fig.min_border_left  = 250
+        _fig.min_border_right = 250
+
+
     # linking efficiency-overview
     #---------------------------------
-    BOKEH_FIGS[f'Efficiency B2'].x_range = BOKEH_FIGS['Overview'].x_range
+    BOKEH_FIGS[f'Efficiency B1'].x_range = BOKEH_FIGS['Overview'].x_range
 
 
     # linking both efficiencies and making panel
@@ -109,7 +118,6 @@ def Efficiency_to_HTML(FILL, device=_default_device, HTML_name=None, import_from
     # Making final layout
     #---------------------------------
     HTML_LAYOUT = bklay.column(BOKEH_FIGS['Overview'],BOKEH_FIGS[f'Efficiency B1B2'] ,BOKEH_FIGS['Intensity B1B2'])
-
     #=====================================
 
     # Exporting to HTML
@@ -195,8 +203,8 @@ def run_analysis(FILL,import_from = _default_import,local_path=_default_path):
 def make_overview_figure(FILL,database):
     # Creating Figure
     #=====================================
-    fig = bk.figure(height          = 500, 
-                    width           = 1500,
+    fig = bk.figure(height          = _default_fig_height, 
+                    width           = _default_fig_width,
                     title           = "Overview" + f' FILL {FILL:d}  ({database["Timestamp"].iloc[0].strftime("%Y-%m-%d")})', 
                     x_axis_type     = "datetime",
                     tools           = "pan,wheel_zoom,box_zoom,reset,save",
@@ -393,8 +401,8 @@ def make_efficiency_figure(FILL,database,source,data_I,beam,bb_df,color,slider_s
 
     # Creating Figure
     #=====================================
-    fig = bk.figure(height          = 400, 
-                    width           = 1500,
+    fig = bk.figure(height          = _default_fig_height, 
+                    width           = _default_fig_width,
                     title           = "Efficiency",
                     x_axis_type     = "datetime", 
                     tools           = "box_zoom,pan,reset,save,hover",
@@ -441,8 +449,8 @@ def make_intensity_figure(FILL,database,source,data_I,beam,bb_df,color):
 
     # Creating Figure
     #=====================================
-    fig = bk.figure(height          = 200, 
-                    width           = 1500,
+    fig = bk.figure(height          = _default_fig_height//2, 
+                    width           = _default_fig_width,
                     title           = "Bunch Intensity", 
                     tools           = "box_zoom,box_select,pan,reset,save,hover",
                     active_drag     = "box_zoom",
