@@ -30,6 +30,7 @@ b_slots   = np.arange(3564)
 #------------------------------------------------
 _default_fig_width  = 2000
 _default_fig_height = 400
+_default_fig_pad    = 50
 
 _default_device = 'DBLM'
 
@@ -90,8 +91,8 @@ def Efficiency_to_HTML(FILL, device=_default_device, HTML_name=None, import_from
 
     # Adjusting canvas size:
     for name,_fig in BOKEH_FIGS.items():
-        _fig.min_border_left  = 250
-        _fig.min_border_right = 250
+        _fig.min_border_left  = _default_fig_pad
+        _fig.min_border_right = _default_fig_pad
 
 
     # linking efficiency-overview
@@ -200,6 +201,31 @@ def run_analysis(FILL,import_from = _default_import,local_path=_default_path):
 
     return database,BCTF_efficiency,DBLM_efficiency,bb_df_b1,bb_df_b2
 
+
+class Slider():
+    def __init__(self,_fig,x,y,w,h,**kwargs):
+        self.metadata = bkmod.ColumnDataSource({'x': [x], 'y': [y], 'w':[w],'h':[h],'default_x':[x],'default_y':[y],'default_w':[w],'default_h':[h]})
+        self.renderer = _fig.rect(x="x", y="y", width="w", height="h", source=self.metadata,**kwargs)#size=100,line_width=10,line_color='black',angle=np.pi/2,line_alpha=0.5,fill_color='red',line_dash="solid")#,line_join='round')
+
+        self.icon     = Path('WireDAQ/slider_icon.png')
+
+    def update(self,**kwargs):
+        self.renderer.glyph.update(**kwargs)
+
+
+# New axis function
+#=====================================
+def new_axis(fig,axis_name,side='none'):
+    fig.extra_y_ranges[axis_name] = bkmod.Range1d(0,1)
+    _ax = bkmod.LinearAxis(y_range_name=axis_name)
+    if side == 'none':
+        pass
+    else:
+        fig.add_layout(_ax,side)
+
+    return _ax,axis_name
+#=====================================
+
 def make_overview_figure(FILL,database):
     # Creating Figure
     #=====================================
@@ -207,7 +233,7 @@ def make_overview_figure(FILL,database):
                     width           = _default_fig_width,
                     title           = "Overview" + f' FILL {FILL:d}  ({database["Timestamp"].iloc[0].strftime("%Y-%m-%d")})', 
                     x_axis_type     = "datetime",
-                    tools           = "pan,wheel_zoom,box_zoom,reset,save",
+                    tools           = "pan,box_zoom,reset,save",
                     active_drag     = "box_zoom")
     fig.xaxis.formatter= bkmod.DatetimeTickFormatter(hourmin = '%H:%M',hours='%H:%M',days='%H:%M',months='%H:%M',years='%H:%M')
     fig.add_tools(bkmod.HoverTool(
@@ -215,15 +241,7 @@ def make_overview_figure(FILL,database):
         formatters={ "$x": "datetime"}))
     #=====================================
 
-    # New axis function
-    #=====================================
-    def new_axis(fig,axis_name,side='left'):
-        fig.extra_y_ranges[axis_name] = bkmod.Range1d(0,1)
-        _ax = bkmod.LinearAxis(y_range_name=axis_name)
-        fig.add_layout(_ax,side)
 
-        return _ax,axis_name
-    #=====================================
 
 
     # Plotting Intensity
@@ -231,55 +249,55 @@ def make_overview_figure(FILL,database):
     for beam,color in zip(beams,['blue','red']):
         data = database.set_index('Timestamp')[beam.Intensity].dropna()
         
-        fig.line(data.index,data,color=color,alpha=0.8,legend_label=beam.name,name=f'Intensity {beam.name}')
+        fig.line(data.index,data,color=color,alpha=0.8,legend_label=beam.name,name=f'Intensity {beam.name} [p+]')
 
-    fig.yaxis.axis_label = "Intensity [1e14 p+]"
+    fig.yaxis.axis_label = "Intensity [p+]"
     fig.xaxis.axis_label = f"Local Time, {database['Timestamp'].iloc[0].strftime('%Y-%m-%d')}"
     #--------------------
 
     # Plotting Luminosity
     #--------------------
-    ax,axis_name = new_axis(fig,axis_name='Luminosity',side='left')
+    ax,axis_name = new_axis(fig,axis_name='Luminosity')#,side='left')
     max_y = 0
     for loc,color in zip(['ATLAS','CMS'],['orange','green']):
         data = database.set_index('Timestamp')[LHC['bb_Luminosity'][loc]].dropna()
         data = data.apply(lambda line: np.sum(line))
         
-        fig.line(data.index,data,color=color,alpha=0.8,legend_label=loc,name=f'Luminosity {loc}',y_range_name=axis_name)
+        fig.line(data.index,data,color=color,alpha=0.8,legend_label=loc,name=f'Luminosity {loc} [Hz/ub]',y_range_name=axis_name)
 
         max_y  = np.max((max_y,np.max(data)))
 
     fig.extra_y_ranges[axis_name] = bkmod.Range1d(-0.05*max_y,1.05*max_y)
-    ax.axis_label = 'Luminosity [Hz/ub]'
+    # ax.axis_label = r"Luminosity [Hz/ub]"
     #--------------------
 
 
     # Plotting xing
     #--------------------
-    ax,axis_name = new_axis(fig,axis_name='xing',side='right')
+    ax,axis_name = new_axis(fig,axis_name='xing')#,side='right')
 
 
     data = database.set_index('Timestamp')[LHC.Xing['IP5']].dropna()
-    fig.line(data.index,data,color='indianred',alpha=0.8,legend_label="theta/2",name="theta/2",y_range_name=axis_name)
+    fig.line(data.index,data,color='indianred',alpha=0.8,legend_label="theta/2",name="theta/2 [urad]",y_range_name=axis_name)
 
         
     fig.extra_y_ranges[axis_name] = bkmod.Range1d(110,180)
-    ax.axis_label = r"Half-crossing angle [urad]"
+    # ax.axis_label = r"Half-crossing angle [urad]"
     #--------------------
 
 
     # Plotting beta star
     #--------------------
-    ax,axis_name = new_axis(fig,axis_name='beta',side='right')
+    ax,axis_name = new_axis(fig,axis_name='beta')#,side='right')
 
 
     data = database.set_index('Timestamp')[LHC.betastar['IP5']].dropna()
     data[(data>90)|(data<0)]=np.nan
-    fig.line(data.index,data,color='purple',alpha=0.8,legend_label="beta*",name="beta*",y_range_name=axis_name)
+    fig.line(data.index,data,color='purple',alpha=0.8,legend_label="beta*",name="beta* [cm]",y_range_name=axis_name)
 
         
     fig.extra_y_ranges[axis_name] = bkmod.Range1d(0,90)
-    ax.axis_label = r"Beta star [cm]"
+    # ax.axis_label = r"Beta star [cm]"
     #--------------------
 
 
@@ -287,16 +305,16 @@ def make_overview_figure(FILL,database):
 
     # Plotting wire current
     #--------------------
-    ax,axis_name = new_axis(fig,axis_name='wire',side='right')
+    ax,axis_name = new_axis(fig,axis_name='wire')#,side='right')
 
     for wire in wires['B2'] :
         data = database.set_index('Timestamp')[wire.I].dropna()
 
-        fig.line(data.index,data,color='teal',alpha=0.8,legend_label="BBCW",name="BBCW",y_range_name=axis_name)
+        fig.line(data.index,data,color='teal',alpha=0.8,legend_label="BBCW",name="BBCW [A]",y_range_name=axis_name)
 
     max_y = 2000
     fig.extra_y_ranges[axis_name] = bkmod.Range1d(-0.05*max_y,1.05*max_y)
-    ax.axis_label = r"BBCW Current [A]"
+    # ax.axis_label = r"BBCW Current [A]"
     #--------------------
 
     # Legend Options

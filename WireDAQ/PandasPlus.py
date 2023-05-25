@@ -103,7 +103,23 @@ def bin(self,_var,window=None,bins=None):
     
 
     return pd.DataFrame({'unix':bin_unix,'Timestamp':bin_timestamp,'Time':bin_time,_var:values})
-PandasObject.bin  = bin
+PandasObject.bin       = bin
+PandasObject.bin_time  = bin
+#=================================================
+
+# Manipulate data
+#=================================================
+def bin_unix(self,_var,bins=None):
+    # GROUPING DATA IN TIME WINDOWS
+    sub     = self.dropna(subset=[_var])
+    grouped = sub.groupby(pd.cut(sub.index,bins=bins))
+
+    # AVG in each time window
+    values   = np.array(grouped[_var].mean())
+    unix     = np.array(pd.Series(grouped.groups.keys()).apply(lambda line:line.mid))
+
+    return pd.DataFrame({_var:values},index=unix)
+PandasObject.bin_unix  = bin_unix
 #=================================================
 
 
