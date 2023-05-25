@@ -1,6 +1,7 @@
 
 import numpy as np
 import pandas as pd
+import dask.dataframe as dd
 
 
 # Local imports
@@ -42,6 +43,9 @@ def from_NXCALS(start_time=None,end_time=None,fill=None,variables = None):
                                                 'Fill',
                                                 'Bmode',
                                                 'betastar'])
+        LHC_vars.remove(LHC.bb_Luminosity['LHCB'])
+        LHC_vars.remove(LHC.bb_Luminosity['ALICE'])
+
         beams_vars = sum([beam._getVarList(subset=[ 'bb_Intensity',
                                                     'bb_Intensity_B',
                                                     'Intensity',
@@ -50,8 +54,7 @@ def from_NXCALS(start_time=None,end_time=None,fill=None,variables = None):
                                                     'dBLM_Amp']) for beam in beams],[])
 
 
-        wires_vars = sum([wire._getVarList(subset=[ 'I',
-                                                    'V']) for wire in wires['B1']+wires['B2']],[])
+        wires_vars = sum([wire._getVarList(subset=[ 'I']) for wire in wires['B2']],[])
         variables = sorted(LHC_vars+beams_vars+wires_vars)
     #============================================
 
@@ -69,6 +72,57 @@ def from_NXCALS(start_time=None,end_time=None,fill=None,variables = None):
     database.insert(0,'Timestamp',database.index)
     database.insert(1,'Time',1e-9*(database.index - database.index[0]))
     database['Timestamp'] = database['Timestamp'].apply(lambda t: pd.Timestamp(t).tz_localize('UTC').tz_convert(spark_session.TZONE))
+    #============================================
+
+    return database
+
+
+#=====================================================
+# Downloading data from EOS pre-saved data
+#=====================================================
+def from_EOS(fill=None,variables = None,beamMode = None,DATA_PATH = '/eos/project/l/lhc-lumimod/LuminosityFollowUp/2023/rawdata/'):
+    # Minimal variables to be used
+    #============================================
+    if variables is None:
+        LHC_vars   = LHC._getVarList(subset=[   'bb_Luminosity',
+                                                'Luminosity',
+                                                'Xing',
+                                                'Fill',
+                                                'Bmode',
+                                                'betastar'])
+        LHC_vars.remove(LHC.bb_Luminosity['LHCB'])
+        LHC_vars.remove(LHC.bb_Luminosity['ALICE'])
+
+        beams_vars = sum([beam._getVarList(subset=[ 'bb_Intensity',
+                                                    'bb_Intensity_B',
+                                                    'Intensity',
+                                                    'Intensity_B',
+                                                    'Nb',
+                                                    'dBLM_Amp']) for beam in beams],[])
+
+
+        wires_vars = sum([wire._getVarList(subset=[ 'I']) for wire in wires['B2']],[])
+        variables = sorted(LHC_vars+beams_vars+wires_vars)
+    #============================================
+
+
+    # Importing the data
+    #============================================
+    if beamMode is None:
+        aux = dd.read_parquet(DATA_PATH + f'HX:FILLN={fill}',columns=variables)
+    else:
+        aux = dd.read_parquet(DATA_PATH + f'HX:FILLN={fill}' + f'/HX:BMODE={beamMode.upper()}',columns=variables)
+        
+    database = aux.compute()
+    #============================================
+
+    # Adding proper timestamp
+    #============================================
+    database = database.sort_index()
+    database.index.name = 'unix'
+    database.insert(0,'Timestamp',database.index)
+    database.insert(1,'Time',1e-9*(database.index - database.index[0]))
+    database['Timestamp'] = database['Timestamp'].apply(lambda t: pd.Timestamp(t).tz_localize('UTC').tz_convert(cst.TZONE))
     #============================================
 
     return database

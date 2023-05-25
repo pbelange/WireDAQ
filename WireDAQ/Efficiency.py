@@ -235,7 +235,7 @@ def compute_dBLM_efficiency(df,beam,dt = 10,baseline = None,calib_ROI=None,fille
     # IF NEEDED : bounds_error=False,fill_value=np.nan
     times     = times_dblm[10:-10]
     data_N    = sciInterp.interp1d(times_N,data_N,axis=0,bounds_error=False,fill_value=np.nan)(times)
-    data_L    = sciInterp.interp1d(times_L,data_L,axis=0,bounds_error=False,fill_value=np.nan)(times)
+    data_L    = 1e6*sciInterp.interp1d(times_L,data_L,axis=0,bounds_error=False,fill_value=np.nan)(times)
 
     for dblmType in ['V','H-V-S']:
         data_dblm[dblmType]  = sciInterp.interp1d(times_dblm,data_dblm[dblmType],axis=0)(times)
