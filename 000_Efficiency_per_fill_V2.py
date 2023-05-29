@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from pathlib import Path
+import gc
 
 # BOKEH
 import bokeh.plotting as bk
@@ -32,9 +33,7 @@ _default_fig_width  = 2000
 _default_fig_height = 400
 _default_fig_pad    = 50
 
-_default_device = 'DBLM'
 
-_default_import = 'local'
 _default_path   = '/home/lumimod/work/run/data/2023/rawdata/'
 _default_out    = '/eos/user/p/phbelang/www/Monitoring_BBCW/'
 
@@ -44,13 +43,13 @@ _default_path   = '/home/phbelang/002mount'
 
 
 
-def Efficiency_to_HTML(FILL, device=_default_device, HTML_name=None, import_from = _default_import,local_path=_default_path):
+def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path):
     if HTML_name is None:
-        HTML_name   = _default_out + f'FILL{FILL}.html'
+        HTML_name   = _default_out + f'FILL{FILL}_V2.html'
 
     print('\n' + 40*'=')
     print('IMPORTING DATA')
-    database,BCTF_efficiency,DBLM_efficiency,bb_df_b1,bb_df_b2 = run_analysis(FILL,import_from =import_from,local_path=local_path)
+    database,bb_df_b1,bb_df_b2 = run_analysis(FILL,data_path=data_path)
     print(40*'=')
 
     # Cropping the filling for testing
@@ -66,7 +65,7 @@ def Efficiency_to_HTML(FILL, device=_default_device, HTML_name=None, import_from
 
     # Efficiency
     # Choosing efficiency data
-    efficiency_df = {'DBLM':DBLM_efficiency,'BCTF':BCTF_efficiency}[device.upper()]
+    efficiency_df = database[['Time','Timestamp','B1:eta','B2:eta']]
 
     dt_I          = 120
     default_ts    = database['Timestamp'].iloc[len(database)//2]
@@ -131,78 +130,93 @@ def Efficiency_to_HTML(FILL, device=_default_device, HTML_name=None, import_from
 
 
 
+# from memory_profiler import profile
+# @profile
+def run_analysis(FILL,data_path=_default_path):
 
-def run_analysis(FILL,import_from = _default_import,local_path=_default_path):
-    # Variables to be used
-    #============================================
-    LHC_vars   = LHC._getVarList(subset=[   'bb_Luminosity',
-                                            'Luminosity',
-                                            'Xing',
+    # Finding filling pattern
+    #-------------------------------------------------
+    bb_df_b1,bb_df_b2 = parser.fill_filling_pattern(fill=FILL,data_path= data_path,n_LR = 21)
+    #-------------------------------------------------
+
+
+
+    # Declaring master bin times
+    #-------------------------------------------------
+    dt = 30
+    unix_s,unix_e = parser.fill_unix_times(FILL,data_path=data_path)
+    unix_bins     = np.arange(unix_s,unix_e,dt/1e-9)
+    #-------------------------------------------------
+
+    # Import and bin dBLM 
+    #-------------------------------------------------
+    variables = []
+    for beam in beams:
+        variables += beam['dBLM_Amp'].values()
+
+    dblm = parser.from_parquet2bin(fill=FILL,variables = variables,bins=unix_bins,beamMode = None,data_path= data_path)
+    #-------------------------------------------------
+
+
+    # Import lumi and compute total lumi
+    #-------------------------------------------------
+    variables  = [LHC.bb_Luminosity['ATLAS'],LHC.bb_Luminosity['CMS']]
+    df_lumi     = parser.from_parquet(fill=FILL,variables = variables,beamMode = None,data_path= data_path)
+    df_lumi_tot = eff.compute_lumi_tot(df_lumi,experiments = ['ATLAS','CMS'])
+
+    #-------------------------------------------------
+
+    # Computing Efficiency
+    #-------------------------------------------------
+    # droping near-zero values
+    n_colliding   = len(bb_df_b1['HO partner in ATLAS'].dropna())
+    avg_per_bunch = df_lumi_tot['bb_LUMI_TOT'].apply(lambda line:np.sum(line)/n_colliding)
+    noise_level   = 0.00115
+    ROI_idx       = avg_per_bunch[avg_per_bunch>5*noise_level].index[[0,-1]]
+
+    _tmp = pd.concat([dblm,df_lumi_tot]).sort_index().loc[ROI_idx[0]:ROI_idx[1]]
+
+    df_eff = eff.compute_dBLM_efficiency(_tmp,beams)
+    #----------------------------------
+
+
+
+    # Adding extra data for analysis
+    #-------------------------------------------------
+    LHC_vars   = LHC._getVarList(subset=[   'Xing',
                                             'Fill',
                                             'Bmode',
                                             'betastar'])
-    LHC_vars.remove(LHC.bb_Luminosity['LHCB'])
-    LHC_vars.remove(LHC.bb_Luminosity['ALICE'])
-
-    beams_vars = sum([beam._getVarList(subset=[ 'bb_Intensity',
-                                                'bb_Intensity_B',
-                                                'Intensity',
-                                                'Intensity_B',
-                                                'Nb',
-                                                'dBLM_Amp']) for beam in beams],[])
 
 
+    beams_vars = sum([beam._getVarList(subset=[ 'Intensity',
+                                                'Nb']) for beam in beams],[])
     wires_vars = sum([wire._getVarList(subset=[ 'I']) for wire in wires['B2']],[])
     variables = sorted(LHC_vars+beams_vars+wires_vars)
-    #============================================
+
+    df_extra = parser.from_parquet(fill=FILL,variables = variables,beamMode = None,data_path= data_path)
+
+    # Intensity
+    #-------------------------------------------------
+    variables = sum([beam._getVarList(subset=['bb_Intensity']) for beam in beams],[])
+    df_intensity = parser.from_parquet2bin(fill=FILL,variables = variables,bins=unix_bins,beamMode = None,data_path= data_path)
 
 
-    # Loading the data
-    #============================================
-    if import_from.lower() == 'nxcals':
-        database      = parser.from_NXCALS(fill=FILL,variables = variables)
-    elif import_from.lower() == 'local':
-        database      = parser.from_EOS(fill=FILL,variables = variables,DATA_PATH = local_path)
-    #============================================
 
-    # Extracting filling pattern
-    #============================================
-    bb_df_b1,bb_df_b2 = parser.getFillingPattern(database)
-    #============================================
+    database = pd.concat([df_extra,df_intensity,df_lumi,df_eff])
+    database = parser.make_timestamps(database)
 
-    # Computing intensity avg (every 20 seconds) with calibration BCT_A+BCT_B, aligned with ATLAS
-    #============================================
-    BCT_avg  = eff.calibrate_BCT(database,dt=20,calibration_ts = None,reference = LHC['bb_Luminosity']['ATLAS'])
-    database = pd.concat([database,BCT_avg])
-    database = database.sort_index()
-    #============================================
+    # Removing raw data
+    #-----------------------------
+    del(df_lumi_tot)
+    gc.collect()
+    #-----------------------------
 
-    # Computing Lumi tot (ATLAS + CMS bunch by bunch)
-    #============================================
-    Lumi_tot = eff.computeLumiTot(database,experiments = ['ATLAS','CMS'])
-    database = pd.concat([database,Lumi_tot])
-    database = database.sort_index()
-    #============================================
+    return database,bb_df_b1,bb_df_b2
 
 
-    # BCTF
-    #==============================================================
-    # Computing efficiency 
-    BCTF_efficiency = {}
-    for beam in beams:
-        BCTF_efficiency[beam.name]  = eff.compute_BCTF_efficiency(database,beam,dt= 60,smooth_derivative=False)
-    #==============================================================
 
-    # DBLM
-    #==============================================================
-    # Computing efficiency 
-    DBLM_efficiency = {}
-    for beam in beams:
-        # DBLM_efficiency[beam.name]  = eff.compute_dBLM_efficiency(database,beam,dt = 10,baseline = None,calib_ROI=None,filled_b_slots=None)
-        DBLM_efficiency[beam.name]  = eff.compute_dBLM_efficiency(database,beam,dt = 30,baseline = None,calib_ROI=None,filled_b_slots=None)
-    #==============================================================
 
-    return database,BCTF_efficiency,DBLM_efficiency,bb_df_b1,bb_df_b2
 
 
 class Slider():
@@ -338,8 +352,8 @@ def make_efficiency_source(FILL,database,efficiency_df,bb_df_list=None,dt_I = 12
         
         
         # Extracting efficiency
-        observable   = 'eta'
-        _times,_data = efficiency_df[beam.name].set_index('Timestamp')[observable].dropna().to_2D()
+        observable   = f'{beam.name}:eta'
+        _times,_data = efficiency_df.set_index('Timestamp')[observable].dropna().to_2D()
         _times       = _times.to_list()
 
         # Computing average intensity
