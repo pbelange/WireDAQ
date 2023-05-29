@@ -36,6 +36,9 @@ _default_device = 'DBLM'
 _default_import = 'local'
 _default_path   = '/home/lumimod/work/run/data/2023/rawdata/'
 _default_out    = '/eos/user/p/phbelang/www/Monitoring_BBCW/'
+
+# Overwrite with sshfs mount
+_default_path   = '/home/phbelang/002mount/'
 #------------------------------------------------
 
 
