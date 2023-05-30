@@ -158,7 +158,7 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path):
 
     # Removing raw data
     #-----------------------------
-    # del(database)
+    del(database)
     gc.collect()
     #-----------------------------
 
