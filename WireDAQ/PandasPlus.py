@@ -103,7 +103,31 @@ def bin(self,_var,window=None,bins=None):
     
 
     return pd.DataFrame({'unix':bin_unix,'Timestamp':bin_timestamp,'Time':bin_time,_var:values})
-PandasObject.bin  = bin
+PandasObject.bin       = bin
+PandasObject.bin_time  = bin
+#=================================================
+
+# Manipulate data
+#=================================================
+# from memory_profiler import profile
+# @profile
+def bin_unix(self,_var,bins=None,keeptype = True):
+    # GROUPING DATA IN TIME WINDOWS
+    sub     = self.dropna(subset=[_var])
+    grouped = sub.groupby(pd.cut(sub.index,bins=bins))
+
+    # AVG in each time window
+    if keeptype:
+        _type  = sub.iloc[0][_var].dtype
+        values = grouped[_var].mean().apply(lambda line: line.astype(_type)).values
+    else:
+        values = grouped[_var].mean().values
+
+    _type = sub.index.dtype
+    unix  = pd.Series(grouped.groups.keys()).apply(lambda line:line.mid.astype(_type)).values
+
+    return pd.DataFrame({_var:values},index=unix)
+PandasObject.bin_unix  = bin_unix
 #=================================================
 
 

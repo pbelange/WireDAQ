@@ -27,7 +27,11 @@ plt.ylabel(f"Current [A]")
 ```
 
 
-
+## To mount data folder via ssh
+```bash
+mkdir my_folder
+sshfs username@pcbe-abp-hpc002.cern.ch:/home/lumimod/work/run/data/2023/rawdata/ my_folder/
+```
 
 
 ## NXCALS installation:
