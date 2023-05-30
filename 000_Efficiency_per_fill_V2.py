@@ -31,7 +31,7 @@ b_slots   = np.arange(3564)
 #------------------------------------------------
 _default_fig_width  = 2000
 _default_fig_height = 400
-_default_fig_pad    = 50
+_default_fig_pad    = 100
 
 
 _default_path   = '/home/lumimod/work/run/data/2023/rawdata/'
@@ -41,44 +41,77 @@ _default_out    = '/eos/user/p/phbelang/www/Monitoring_BBCW/'
 _default_path   = '/home/phbelang/002mount'
 #------------------------------------------------
 
+# RUN:
+# main = __import__('000_Efficiency_per_fill_V2')
+# database,source,data_I = main.Efficiency_to_HTML(8773)
 
-
+#[8761,8762,8763,8765,8767,8768,8769,8770,8771,8772]
 def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path):
     if HTML_name is None:
-        HTML_name   = _default_out + f'FILL{FILL}_V2.html'
+        HTML_name   = _default_out + f'FILL{FILL}.html'
 
     print('\n' + 40*'=')
     print('IMPORTING DATA')
     database,bb_df_b1,bb_df_b2 = run_analysis(FILL,data_path=data_path)
     print(40*'=')
 
-    # Cropping the filling for testing
-    bb_df_b1 = bb_df_b1.loc[1070:2050]
-    bb_df_b2 = bb_df_b2.loc[1070:2050]
+    # # Cropping the filling for testing
+    # bb_df_b1 = bb_df_b1.loc[1070:2050]
+    # bb_df_b2 = bb_df_b2.loc[1070:2050]
+
 
     print('\n' + 40*'=')
     print('CREATING FIGURES')
     # Creating figures
     #=====================================
+
     BOKEH_FIGS = {}
+
+
+    # Making data source for most plots
+    #-------------------------------------
+    slider_dt     = 5*60
+    default_ts    = database['Timestamp'].iloc[len(database)//2]
+    source,data_I = make_efficiency_source(FILL,database,bb_df_list=[bb_df_b1,bb_df_b2],slider_dt=slider_dt,default_ts = default_ts)
+    #-------------------------------------
+
+    # Overview plot
+    #-------------------------------------
     BOKEH_FIGS['Overview'] = make_overview_figure(FILL,database)
 
-    # Efficiency
-    # Choosing efficiency data
-    efficiency_df = database[['Time','Timestamp','B1:eta','B2:eta']]
+    # Add slider tool
+    #-------------------------------------
+    time_slider = Slider(BOKEH_FIGS['Overview'],x=default_ts,w=pd.Timedelta(seconds=slider_dt),fill_color='black',fill_alpha=0.2,line_alpha=1)
+    time_slider.add_callback(args = dict(   sourceb1= source['B1'],
+                                            sourceb2= source['B2'],
+                                            ts_list = list(data_I['B1'].index),
+                                            bb_I_b1 = data_I['B1'],
+                                            bb_I_b2 = data_I['B2']),
+            code =  """
+                    const _s     = metadata.data['x'][0];
+                    const _s_idx = ts_list.findIndex( x => Date.parse(new Date(x)) >= Date.parse(new Date(_s)));
+                    sourceb1.data.Intensity = bb_I_b1[_s_idx];
+                    sourceb2.data.Intensity = bb_I_b2[_s_idx];
 
-    dt_I          = 120
-    default_ts    = database['Timestamp'].iloc[len(database)//2]
-    source,data_I = make_efficiency_source(FILL,database,efficiency_df,bb_df_list=[bb_df_b1,bb_df_b2],dt_I = dt_I,default_ts = default_ts)
+                    sourceb1.change.emit();
+                    sourceb2.change.emit();
+                    """)
+    #-------------------------------------
 
-    slider_source,ghost_range = make_plot_slider(FILL,database,source,data_I,dt_I = dt_I,default_ts = default_ts)
-
+    # Efficiency plot
+    #-------------------------------------
     for beam,bb_df,color in zip(beams,[bb_df_b1,bb_df_b2],['royalblue','firebrick']):
-        BOKEH_FIGS[f'Efficiency {beam.name}'] = make_efficiency_figure(FILL,database,source,data_I,beam,bb_df,color,slider_source,ghost_range,dt_I = dt_I,default_ts = default_ts)
+        BOKEH_FIGS[f'Efficiency {beam.name}'] = make_efficiency_figure(database,source,beam,color)#make_efficiency_figure(FILL,database,source,data_I,beam,bb_df,color,slider_source,ghost_range,dt_I = dt_I,default_ts = default_ts)
+        # Adding slider indicator
+        #-------------
+        time_slider.add_renderer(BOKEH_FIGS[f'Efficiency {beam.name}'],fill_color='black',fill_alpha=0.2,line_alpha=0)
+        #-------------
+
 
     # Intensity
+    #-------------------------------------
     for beam,bb_df,color in zip(beams,[bb_df_b1,bb_df_b2],['royalblue','firebrick']):
-        BOKEH_FIGS[f'Intensity {beam.name}'] = make_intensity_figure(FILL,database,source,data_I,beam,bb_df,color)
+        BOKEH_FIGS[f'Intensity {beam.name}'] = make_intensity_figure(source,data_I,beam,color)#make_intensity_figure(FILL,database,source,data_I,beam,bb_df,color)
                                           
     #=====================================
     print(40*'=')
@@ -120,13 +153,23 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path):
     
     # Making final layout
     #---------------------------------
-    HTML_LAYOUT = bklay.column(BOKEH_FIGS['Overview'],BOKEH_FIGS[f'Efficiency B1B2'] ,BOKEH_FIGS['Intensity B1B2'])
+    HTML_LAYOUT = bklay.column(bklay.gridplot([[BOKEH_FIGS['Overview']], [BOKEH_FIGS[f'Efficiency B1B2']]],toolbar_location='right'),BOKEH_FIGS['Intensity B1B2'])
     #=====================================
+
+    # Removing raw data
+    #-----------------------------
+    # del(database)
+    gc.collect()
+    #-----------------------------
+
 
     # Exporting to HTML
     #=====================================
     export_HTML(HTML_LAYOUT,HTML_name,f'Fill {FILL}')
     print(40*'=')
+
+    
+    # return database,source,data_I
 
 
 
@@ -143,7 +186,7 @@ def run_analysis(FILL,data_path=_default_path):
 
     # Declaring master bin times
     #-------------------------------------------------
-    dt = 30
+    dt = 60
     unix_s,unix_e = parser.fill_unix_times(FILL,data_path=data_path)
     unix_bins     = np.arange(unix_s,unix_e,dt/1e-9)
     #-------------------------------------------------
@@ -167,16 +210,17 @@ def run_analysis(FILL,data_path=_default_path):
     #-------------------------------------------------
 
     # Computing Efficiency
-    #-------------------------------------------------
+    #------------------------------------------------- 
+    _tmp   = pd.concat([dblm,df_lumi_tot]).sort_index()
+    df_eff = eff.compute_dBLM_efficiency(_tmp,beams)
+
     # droping near-zero values
     n_colliding   = len(bb_df_b1['HO partner in ATLAS'].dropna())
     avg_per_bunch = df_lumi_tot['bb_LUMI_TOT'].apply(lambda line:np.sum(line)/n_colliding)
     noise_level   = 0.00115
-    ROI_idx       = avg_per_bunch[avg_per_bunch>5*noise_level].index[[0,-1]]
 
-    _tmp = pd.concat([dblm,df_lumi_tot]).sort_index().loc[ROI_idx[0]:ROI_idx[1]]
-
-    df_eff = eff.compute_dBLM_efficiency(_tmp,beams)
+    ROI_idx = avg_per_bunch[avg_per_bunch>5*noise_level].index[[0,-1]]
+    df_eff  = df_eff.loc[ROI_idx[0]:ROI_idx[1]]
     #----------------------------------
 
 
@@ -199,7 +243,8 @@ def run_analysis(FILL,data_path=_default_path):
     # Intensity
     #-------------------------------------------------
     variables = sum([beam._getVarList(subset=['bb_Intensity']) for beam in beams],[])
-    df_intensity = parser.from_parquet2bin(fill=FILL,variables = variables,bins=unix_bins,beamMode = None,data_path= data_path)
+    unix_bins_I  = np.arange(unix_s,unix_e,5*60/1e-9)
+    df_intensity = parser.from_parquet2bin(fill=FILL,variables = variables,bins=unix_bins_I,beamMode = None,data_path= data_path)
 
 
 
@@ -209,6 +254,10 @@ def run_analysis(FILL,data_path=_default_path):
     # Removing raw data
     #-----------------------------
     del(df_lumi_tot)
+    del(df_extra)
+    del(df_intensity)
+    del(df_lumi)
+    del(df_eff)
     gc.collect()
     #-----------------------------
 
@@ -216,18 +265,6 @@ def run_analysis(FILL,data_path=_default_path):
 
 
 
-
-
-
-class Slider():
-    def __init__(self,_fig,x,y,w,h,**kwargs):
-        self.metadata = bkmod.ColumnDataSource({'x': [x], 'y': [y], 'w':[w],'h':[h],'default_x':[x],'default_y':[y],'default_w':[w],'default_h':[h]})
-        self.renderer = _fig.rect(x="x", y="y", width="w", height="h", source=self.metadata,**kwargs)#size=100,line_width=10,line_color='black',angle=np.pi/2,line_alpha=0.5,fill_color='red',line_dash="solid")#,line_join='round')
-
-        self.icon     = Path('WireDAQ/slider_icon.png')
-
-    def update(self,**kwargs):
-        self.renderer.glyph.update(**kwargs)
 
 
 # New axis function
@@ -246,16 +283,19 @@ def new_axis(fig,axis_name,side='none'):
 def make_overview_figure(FILL,database):
     # Creating Figure
     #=====================================
-    fig = bk.figure(height          = _default_fig_height, 
+    fig = bk.figure(output_backend  = "webgl",
+                    height          = _default_fig_height, 
                     width           = _default_fig_width,
                     title           = "Overview" + f' FILL {FILL:d}  ({database["Timestamp"].iloc[0].strftime("%Y-%m-%d")})', 
                     x_axis_type     = "datetime",
-                    tools           = "pan,box_zoom,reset,save",
+                    tools           = "pan,box_zoom,reset,save,hover",
                     active_drag     = "box_zoom")
     fig.xaxis.formatter= bkmod.DatetimeTickFormatter(hourmin = '%H:%M',hours='%H:%M',days='%H:%M',months='%H:%M',years='%H:%M')
-    fig.add_tools(bkmod.HoverTool(
-        tooltips=[('Variable', '$name'),('Time (H:M)','$x{%H:%M}'),('Value','$y')],
-        formatters={ "$x": "datetime"}))
+
+    fig.tags = [{str(type(t)).split('.')[-1].split('\'')[0]:t for t in fig.tools}]
+
+    # fig.tags[0]['PanTool'].update(dimensions = 'width')
+    fig.tags[0]['HoverTool'].update(tooltips=[('Variable', '$name'),('Time (H:M)','$x{%H:%M}'),('Value','$y')],formatters={ "$x": "datetime"})
     #=====================================
 
 
@@ -343,7 +383,7 @@ def make_overview_figure(FILL,database):
     return fig
 
 
-def make_efficiency_source(FILL,database,efficiency_df,bb_df_list=None,dt_I = 120,default_ts = None):
+def make_efficiency_source(FILL,database,bb_df_list=None,slider_dt = 120,default_ts = None):
     # Creating shared source for plots
     #=====================================================================
     source = {}
@@ -353,12 +393,12 @@ def make_efficiency_source(FILL,database,efficiency_df,bb_df_list=None,dt_I = 12
         
         # Extracting efficiency
         observable   = f'{beam.name}:eta'
-        _times,_data = efficiency_df.set_index('Timestamp')[observable].dropna().to_2D()
+        _times,_data = database.set_index('Timestamp')[observable].dropna().to_2D()
         _times       = _times.to_list()
 
         # Computing average intensity
         _data_I           = database.set_index('Timestamp')[beam.bb_Intensity].dropna()
-        data_I[beam.name] = _data_I.groupby(pd.Grouper(freq=f'{dt_I}s')).mean().apply(lambda line: line[bb_df.index]/1e11)
+        data_I[beam.name] = _data_I.groupby(pd.Grouper(freq=f'{slider_dt}s')).mean().apply(lambda line: line[bb_df.index]/1e11)
 
         # Compiling data to source
         _source_df   = pd.DataFrame({'Bunch'   :bb_df.index,
@@ -373,65 +413,94 @@ def make_efficiency_source(FILL,database,efficiency_df,bb_df_list=None,dt_I = 12
     return source,data_I
 
 
-def make_plot_slider(FILL,database,source,data_I,dt_I = 120,default_ts = None):
-    # Creating plot slider
-    #=====================================================================
 
-    slider_dt = pd.Timedelta(seconds=dt_I)
-    ghost_dt  = pd.Timedelta(minutes=15)
+class Slider():
+    def __init__(self,_fig,x,w,**kwargs):
+        
+        # Icon file
+        self.icon     = Path('WireDAQ/slider_icon.png')
 
-    start_ts  = default_ts-ghost_dt/2
-    stop_ts   = default_ts+ghost_dt/2
-    middle_ts = default_ts
+        # Creating new axis from 0-1 on the figure
+        ax,axis_name = new_axis(_fig,axis_name='_slider')
+        _fig.extra_y_ranges[axis_name] = bkmod.Range1d(0,1)
+        kwargs.update({'y_range_name':axis_name})
 
-    ghost_range   = bkmod.Range1d(start_ts,stop_ts,reset_start = start_ts,reset_end=stop_ts)
-    slider_source = bkmod.ColumnDataSource(data=dict(x=[start_ts + ghost_dt/2,start_ts + ghost_dt/2], ym=[-10, 10]))
+        # Metadata
+        w_factor = 5
+        self.metadata  = bkmod.ColumnDataSource({'x': [x], 'w':[w],'w_drag':[w_factor*w],'w_factor':[w_factor] ,'yt':[2],'yb':[-1],'ym':[0.5]})
 
-    ghost_range.js_on_change('start', bkmod.callbacks.CustomJS(args=dict(   slider  = ghost_range ,
-                                                                            dt      = ghost_dt,
-                                                                            s2      = slider_source,
-                                                                            sourceb1= source['B1'],
-                                                                            sourceb2= source['B2'],
-                                                                            ts_list = list(data_I['B1'].index),
-                                                                            bb_I_b1 = data_I['B1'],
-                                                                            bb_I_b2 = data_I['B2']), 
+        # Range object
+        _s_ts = x-w_factor*w/2
+        _e_ts = x+w_factor*w/2
+        self.range = bkmod.Range1d(_s_ts,_e_ts)
+
+
+        # Add tool to figure
+        self.RangeTool = bkmod.RangeTool(   x_range      = self.range,
+                                            icon         = self.icon)
+        
+        self.RangeTool.overlay.update(      visible      = False,
+                                            fill_color   = None,
+                                            fill_alpha   = 0,
+                                            line_color   = None)
+        _fig.add_tools(self.RangeTool)
+
+
+        # Add visible slider itself
+        self.renderer = _fig.rect(x="x", y="ym", width="w", height="yt", source=self.metadata,**kwargs)
+
+        # Muting for overlay tool
+        self.renderer.muted = True
+        if 'y_range_name' in kwargs.keys():
+            kwargs.pop('y_range_name');
+        self.renderer.muted_glyph.update(**kwargs)
+
+        # Default callback to link the range with rendered object
+        #-------------------------
+        self.callback_start = bkmod.callbacks.CustomJS(args=dict(metadata = self.metadata), 
                                                                             code="""
-        //=========================================================
-        slider.end = cb_obj.start+dt;
-        s2.data    = {x:[slider.start+dt/2,slider.start+dt/2],ym:[-10, 10]};
+                //=========================================================
+                cb_obj.end         = cb_obj.start+metadata.data['w_drag'][0];
+                metadata.data['x'] = [(cb_obj.start + cb_obj.end)/2];
+                metadata.change.emit()
+                //=========================================================""")
+
+        self.callback_end = bkmod.callbacks.CustomJS(args=dict(metadata = self.metadata), 
+                                                                            code="""
+                //=========================================================
+                cb_obj.end         = cb_obj.start+metadata.data['w_drag'][0];
+                metadata.data['x'] = [(cb_obj.start + cb_obj.end)/2];
+                metadata.change.emit()
+                //=========================================================""")
+
+        self.range.js_on_change('start',self.callback_start )
+        self.range.js_on_change('end'  ,self.callback_end )
+        #-------------------------
+        
+    def add_renderer(self,_fig,**kwargs):
+        # Creating new axis from 0-1 on the figure
+        _,axis_name = new_axis(_fig,axis_name='_slider_indicator')
+        _fig.extra_y_ranges[axis_name] = bkmod.Range1d(0,1)
+        kwargs.update({'y_range_name':axis_name})
+        return _fig.rect(x="x", y="ym", width="w", height="yt", source=self.metadata,**kwargs)
+    
+    def update(self,**kwargs):
+        if 'y_range_name' in kwargs.keys():
+            kwargs.pop('y_range_name');
+        self.renderer.glyph.update(**kwargs)
+        self.renderer.muted_glyph.update(**kwargs)
+
+    def add_callback(self,args,code):
+        self.callback_start.update(args=dict(metadata = self.metadata,**args), 
+                                                                            code="""
+                //=========================================================
+                cb_obj.end         = cb_obj.start+metadata.data['w_drag'][0];
+                metadata.data['x'] = [(cb_obj.start + cb_obj.end)/2];
+                metadata.change.emit()
+                //=========================================================\n""" + code)
 
 
-        const _s     = slider.start+dt/2;
-        const _s_idx = ts_list.findIndex( x => Date.parse(new Date(x)) >= Date.parse(new Date(_s)));
-        sourceb1.data.Intensity = bb_I_b1[_s_idx];
-        sourceb2.data.Intensity = bb_I_b2[_s_idx];
-        sourceb1.change.emit();
-        sourceb2.change.emit();
-        //========================================================="""))
-
-
-    ghost_range.js_on_change('end', bkmod.callbacks.CustomJS(args=dict(     slider  = ghost_range ,
-                                                                            dt      = ghost_dt,
-                                                                            s2      = slider_source),
-                                                                            code    ="""
-        //=========================================================
-        slider.end = cb_obj.start+dt;
-        s2.data    = {x:[slider.start+dt/2,slider.start+dt/2],ym:[-10, 10]};
-        //========================================================="""))
-    #=====================================================================
-
-    return slider_source,ghost_range
-
-
-
-def make_efficiency_figure(FILL,database,source,data_I,beam,bb_df,color,slider_source,ghost_range,dt_I = 120,default_ts = None):
-
-    slider_dt = pd.Timedelta(seconds=dt_I)
-    ghost_dt  = pd.Timedelta(minutes=15)
-
-    start_ts  = default_ts-ghost_dt/2
-    stop_ts   = default_ts+ghost_dt/2
-    middle_ts = default_ts
+def make_efficiency_figure(database,source,beam,color):
 
 
     # Creating Figure
@@ -440,7 +509,7 @@ def make_efficiency_figure(FILL,database,source,data_I,beam,bb_df,color,slider_s
                     width           = _default_fig_width,
                     title           = "Efficiency",
                     x_axis_type     = "datetime", 
-                    tools           = "box_zoom,pan,reset,save,hover",
+                    tools           = "pan,box_zoom,reset,save,hover",
                     active_drag     = "box_zoom",
                     x_range         =  bkmod.Range1d(start=source[beam.name].data['Timestamp'][0][0],end=source[beam.name].data['Timestamp'][0][-1],bounds='auto'))
     
@@ -448,43 +517,36 @@ def make_efficiency_figure(FILL,database,source,data_I,beam,bb_df,color,slider_s
     fig.xaxis.formatter= bkmod.DatetimeTickFormatter(hourmin = '%H:%M',hours='%H:%M',days='%H:%M',months='%H:%M',years='%H:%M')
     
     # Saving tools to tags
-    fig.add_tools(bkmod.RangeTool())
     fig.tags = [{str(type(t)).split('.')[-1].split('\'')[0]:t for t in fig.tools}]
 
-    fig.tags[0]['RangeTool'].update(x_range = ghost_range)
-    fig.tags[0]['RangeTool'].overlay.update(visible=False,fill_color=None,fill_alpha=0,line_color=None)
-
-    fig.tags[0]['PanTool'].update(dimensions = 'width')
+    # fig.tags[0]['PanTool'].update(dimensions = 'width')
     fig.tags[0]['HoverTool'].update(tooltips=[('Bunch', '@Bunch'),('Time (H:M)','$x{%H:%M}'),('Value','$y')],formatters={ "$x": "datetime"},muted_policy='ignore')
     #=====================================
 
     # Plotting efficiency
     #--------------------
     # source[beam.name].selected.update(indices=source[beam.name].data.index[-10:])
-    mlines = fig.multi_line(xs='Timestamp', ys='eta',source=source[beam.name])
+    mlines = fig.multi_line(xs='Timestamp', ys='eta',source=source[beam.name],color=color)
 
     # Updating nonselection glyph
     mlines.nonselection_glyph = bkmod.glyphs.MultiLine(line_color=None, line_width=0)
 
     # Axis info
     fig.y_range          = bkmod.Range1d(0, 1.05)
-    #--------------------
-
-    # Plotting slider
-    #--------------------
-    slider = fig.vbar(x='x', top='ym', color="navy",width=slider_dt,line_width=1,line_color='black',line_dash="2 2",line_alpha=1, alpha=0.2, source=slider_source)
-    slider.muted = True
+    fig.yaxis.axis_label = "Burn-off efficiency"
+    fig.xaxis.axis_label = f"Local Time, {database['Timestamp'].iloc[0].strftime('%Y-%m-%d')}"
     #--------------------
 
     return fig
 
 
 
-def make_intensity_figure(FILL,database,source,data_I,beam,bb_df,color):
+def make_intensity_figure(source,data_I,beam,color):
 
     # Creating Figure
     #=====================================
-    fig = bk.figure(height          = _default_fig_height//2, 
+    fig = bk.figure(output_backend  = "webgl",
+                    height          = _default_fig_height//2, 
                     width           = _default_fig_width,
                     title           = "Bunch Intensity", 
                     tools           = "box_zoom,box_select,pan,reset,save,hover",
