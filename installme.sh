@@ -39,6 +39,7 @@ pip install NAFFlib
 pip install dask
 pip install pynumdiff
 pip install bokeh
+pip install mdutils
 
 # Adding the jupyter kernel to the list of kernels
 python -m ipykernel install --user --name py_wireDAQ --display-name "py_wireDAQ"

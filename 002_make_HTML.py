@@ -33,34 +33,28 @@ _default_fig_width  = 2000
 _default_fig_height = 400
 _default_fig_pad    = 100
 
+_default_device = 'DBLM'
 
-_default_path   = '/home/lumimod/work/run/data/2023/rawdata/'
-_default_out    = '/eos/user/p/phbelang/www/Monitoring_BBCW/'
+_default_path     = '/eos/project/l/lhc-lumimod/LuminosityFollowUp/2023/'
+_default_out      = '/eos/user/p/phbelang/www/Monitoring_BBCW/DBLM'
 
-# Overwrite with sshfs mount
-_default_path   = '/home/phbelang/002mount'
-#------------------------------------------------
 
-# RUN:
-# main = __import__('000_Efficiency_per_fill_V2')
-# database,source,data_I = main.Efficiency_to_HTML(8773)
+def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _default_device):
 
-#[8761,8762,8763,8765,8767,8768,8769,8770,8771,8772]
-def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path):
-    if HTML_name is None:
-        HTML_name   = _default_out + f'FILL{FILL}.html'
+
+    assert HTML_name is not None, 'Please provide a name for the HTML file'
+
+
 
     print('\n' + 40*'=')
     print('IMPORTING DATA')
-    database,bb_df_b1,bb_df_b2 = run_analysis(FILL,data_path=data_path)
-    print(40*'=')
-
-    # # Cropping the filling for testing
-    # bb_df_b1 = bb_df_b1.loc[1070:2050]
-    # bb_df_b2 = bb_df_b2.loc[1070:2050]
+    database,bb_df_b1,bb_df_b2 = run_analysis(FILL,data_path=data_path,device = device)
+    
 
 
-    print('\n' + 40*'=')
+
+
+    print(40*'-')
     print('CREATING FIGURES')
     # Creating figures
     #=====================================
@@ -88,7 +82,7 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path):
                                             bb_I_b1 = data_I['B1'],
                                             bb_I_b2 = data_I['B2']),
             code =  """
-                    const _s     = metadata.data['x'][0];
+                    const _s     = metadata.data['x'][0]-metadata.data['w'][0];
                     const _s_idx = ts_list.findIndex( x => Date.parse(new Date(x)) >= Date.parse(new Date(_s)));
                     sourceb1.data.Intensity = bb_I_b1[_s_idx];
                     sourceb2.data.Intensity = bb_I_b2[_s_idx];
@@ -114,12 +108,12 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path):
         BOKEH_FIGS[f'Intensity {beam.name}'] = make_intensity_figure(source,data_I,beam,color)#make_intensity_figure(FILL,database,source,data_I,beam,bb_df,color)
                                           
     #=====================================
-    print(40*'=')
+    
 
 
 
 
-    print('\n' + 40*'=')
+    print(40*'-')
     print('Exporting to HTML')
     # LAYOUT
     #=====================================
@@ -132,6 +126,8 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path):
 
     # linking efficiency-overview
     #---------------------------------
+    # BOKEH_FIGS['Overview'].x_range.update(bounds = 'auto')#max_interval=BOKEH_FIGS['Overview'].x_range.end-BOKEH_FIGS['Overview'].x_range.start)
+
     BOKEH_FIGS[f'Efficiency B1'].x_range = BOKEH_FIGS['Overview'].x_range
 
 
@@ -173,13 +169,17 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path):
 
 
 
-# from memory_profiler import profile
-# @profile
-def run_analysis(FILL,data_path=_default_path):
+def run_analysis(FILL,data_path=_default_path,device = _default_device):
+
+    # Fixing data path
+    raw_data    = data_path + '/rawdata/'
+    device_data = data_path + f'/efficiency_data/{device}/'
+
+
 
     # Finding filling pattern
     #-------------------------------------------------
-    bb_df_b1,bb_df_b2 = parser.fill_filling_pattern(fill=FILL,data_path= data_path,n_LR = 21)
+    bb_df_b1,bb_df_b2 = parser.fill_filling_pattern(fill=FILL,data_path= raw_data,n_LR = 21)
     #-------------------------------------------------
 
 
@@ -187,33 +187,30 @@ def run_analysis(FILL,data_path=_default_path):
     # Declaring master bin times
     #-------------------------------------------------
     dt = 60
-    unix_s,unix_e = parser.fill_unix_times(FILL,data_path=data_path)
+    unix_s,unix_e = parser.fill_unix_times(FILL,data_path=raw_data)
     unix_bins     = np.arange(unix_s,unix_e,dt/1e-9)
     #-------------------------------------------------
 
-    # Import and bin dBLM 
+    # Import efficiency
     #-------------------------------------------------
-    variables = []
-    for beam in beams:
-        variables += beam['dBLM_Amp'].values()
-
-    dblm = parser.from_parquet2bin(fill=FILL,variables = variables,bins=unix_bins,beamMode = None,data_path= data_path)
+    # try:
+    df_eff = parser.from_parquet2bin(file= device_data + f'/FILL{FILL}.parquet',bins=unix_bins)
+    # except:
+    #     print('!!! Failed to import dBLM,trying to drop first and last 10% of data !!!')
+    #     unix_bins = unix_bins[len(unix_bins)//10:-len(unix_bins)//10]
+    #     df_eff = parser.from_parquet2bin(file= device_data + f'/FILL{FILL}.parquet',bins=unix_bins)
     #-------------------------------------------------
 
 
     # Import lumi and compute total lumi
     #-------------------------------------------------
     variables  = [LHC.bb_Luminosity['ATLAS'],LHC.bb_Luminosity['CMS']]
-    df_lumi     = parser.from_parquet(fill=FILL,variables = variables,beamMode = None,data_path= data_path)
+    df_lumi     = parser.from_parquet(fill=FILL,variables = variables,beamMode = None,data_path= raw_data)
     df_lumi_tot = eff.compute_lumi_tot(df_lumi,experiments = ['ATLAS','CMS'])
-
     #-------------------------------------------------
 
-    # Computing Efficiency
+    # Cropping Efficiency
     #------------------------------------------------- 
-    _tmp   = pd.concat([dblm,df_lumi_tot]).sort_index()
-    df_eff = eff.compute_dBLM_efficiency(_tmp,beams)
-
     # droping near-zero values
     n_colliding   = len(bb_df_b1['HO partner in ATLAS'].dropna())
     avg_per_bunch = df_lumi_tot['bb_LUMI_TOT'].apply(lambda line:np.sum(line)/n_colliding)
@@ -238,13 +235,13 @@ def run_analysis(FILL,data_path=_default_path):
     wires_vars = sum([wire._getVarList(subset=[ 'I']) for wire in wires['B2']],[])
     variables = sorted(LHC_vars+beams_vars+wires_vars)
 
-    df_extra = parser.from_parquet(fill=FILL,variables = variables,beamMode = None,data_path= data_path)
+    df_extra = parser.from_parquet(fill=FILL,variables = variables,beamMode = None,data_path= raw_data)
 
     # Intensity
     #-------------------------------------------------
     variables = sum([beam._getVarList(subset=['bb_Intensity']) for beam in beams],[])
     unix_bins_I  = np.arange(unix_s,unix_e,5*60/1e-9)
-    df_intensity = parser.from_parquet2bin(fill=FILL,variables = variables,bins=unix_bins_I,beamMode = None,data_path= data_path)
+    df_intensity = parser.from_parquet2bin(fill=FILL,variables = variables,bins=unix_bins_I,beamMode = None,data_path= raw_data)
 
 
 
@@ -289,13 +286,14 @@ def make_overview_figure(FILL,database):
                     title           = "Overview" + f' FILL {FILL:d}  ({database["Timestamp"].iloc[0].strftime("%Y-%m-%d")})', 
                     x_axis_type     = "datetime",
                     tools           = "pan,box_zoom,reset,save,hover",
-                    active_drag     = "box_zoom")
+                    active_drag     = "box_zoom",
+                    x_range         = bkmod.Range1d(database["Timestamp"].iloc[0],database["Timestamp"].iloc[-1],bounds='auto'))
     fig.xaxis.formatter= bkmod.DatetimeTickFormatter(hourmin = '%H:%M',hours='%H:%M',days='%H:%M',months='%H:%M',years='%H:%M')
 
     fig.tags = [{str(type(t)).split('.')[-1].split('\'')[0]:t for t in fig.tools}]
 
     # fig.tags[0]['PanTool'].update(dimensions = 'width')
-    fig.tags[0]['HoverTool'].update(tooltips=[('Variable', '$name'),('Time (H:M)','$x{%H:%M}'),('Value','$y')],formatters={ "$x": "datetime"})
+    fig.tags[0]['HoverTool'].update(tooltips=[('Variable', '$name'),('Time (H:M)','$x{%H:%M}'),('Value','$y')],formatters={ "$x": "datetime"},muted_policy='ignore')
     #=====================================
 
 
@@ -418,7 +416,7 @@ class Slider():
     def __init__(self,_fig,x,w,**kwargs):
         
         # Icon file
-        self.icon     = Path('WireDAQ/slider_icon.png')
+        self.icon     = Path('WireDAQ/Icons/slider_icon.png')
 
         # Creating new axis from 0-1 on the figure
         ax,axis_name = new_axis(_fig,axis_name='_slider')
@@ -426,7 +424,7 @@ class Slider():
         kwargs.update({'y_range_name':axis_name})
 
         # Metadata
-        w_factor = 5
+        w_factor = 3
         self.metadata  = bkmod.ColumnDataSource({'x': [x], 'w':[w],'w_drag':[w_factor*w],'w_factor':[w_factor] ,'yt':[2],'yb':[-1],'ym':[0.5]})
 
         # Range object
@@ -482,7 +480,14 @@ class Slider():
         _,axis_name = new_axis(_fig,axis_name='_slider_indicator')
         _fig.extra_y_ranges[axis_name] = bkmod.Range1d(0,1)
         kwargs.update({'y_range_name':axis_name})
-        return _fig.rect(x="x", y="ym", width="w", height="yt", source=self.metadata,**kwargs)
+
+        _rend = _fig.rect(x="x", y="ym", width="w", height="yt", source=self.metadata,**kwargs)
+        # Muting for overlay tool
+        _rend.muted = True
+        if 'y_range_name' in kwargs.keys():
+            kwargs.pop('y_range_name');
+        _rend.muted_glyph.update(**kwargs)
+        return _rend
     
     def update(self,**kwargs):
         if 'y_range_name' in kwargs.keys():
@@ -558,7 +563,7 @@ def make_intensity_figure(source,data_I,beam,color):
     
     # Saving tools to tags
     fig.tags = [{str(type(t)).split('.')[-1].split('\'')[0]:t for t in fig.tools}]
-    fig.tags[0]['BoxSelectTool'].update(dimensions='width',persistent=False)
+    fig.tags[0]['BoxSelectTool'].update(dimensions='width',persistent=False,icon=Path('WireDAQ/Icons/selector_icon.png'))
     # fig.tags[0]['BoxZoomTool'].update(dimensions = 'width')
     fig.tags[0]['PanTool'].update(dimensions = 'width')
     fig.tags[0]['HoverTool'].update(tooltips = [(f'Beam', '$name'),('Bunch slot','$x{0}')])
@@ -594,15 +599,23 @@ def export_HTML(LAYOUT,filename,tabname):
 
 
 
-
 # To call the script directly
 if __name__ == '__main__':
-    import sys
-    if len(sys.argv) > 2 :
-        print('Invalid arguments, quitting...')
-        sys.exit(0)
-    elif len(sys.argv) == 2:
-        inputFile = sys.argv[1]
-        ufo,beam,collisionTime,inelasticCollisionss = main(inputFile,showPlots = True,saveOutput = True)
-    else:
-        ufo,beam,collisionTime,inelasticCollisions = main(showPlots = True,saveOutput = True)
+    import argparse
+    # Adding command line parser
+    aparser = argparse.ArgumentParser()
+    aparser.add_argument("FILL", type=int,                              help = "Fill number to analyse")
+    aparser.add_argument("-p", "--path",                                help = "Location of parquet files"  ,default = _default_path)
+    aparser.add_argument("-d", "--device",choices=['DBLM', 'BCTF'],     help = "Location of parquet files"  ,default = _default_device)
+    aparser.add_argument("-e", "--export",                              help = "Location to export HTML"    ,default = _default_out)
+    args = aparser.parse_args()
+    
+    assert args.FILL>8000, 'Invalid fill number'
+    assert Path(args.path).exists(), 'Invalid data path'
+    assert Path(args.export).exists(), 'Invalid export path'
+    
+    print(40*'*')
+    print(f' make_HTML on F{args.FILL}\n | Device: \t{args.device}\n | Data path: \t{args.path}\n | Export to: \t{args.export}/FILL{args.FILL}.html')
+    print(40*'*')
+
+    Efficiency_to_HTML(args.FILL, HTML_name= args.export + f'/FILL{args.FILL}.html',device=args.device,data_path=args.path)

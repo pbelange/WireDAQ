@@ -167,14 +167,17 @@ def make_timestamps(df):
 #=====================================================
 # BIN DATA with loading
 #=====================================================
-def from_parquet(fill=None,variables = None,beamMode = None,data_path= _default_path):
+def from_parquet(fill=None,file = None,variables = None,beamMode = None,data_path= _default_path):
 
     # Importing the data
     #-----------------------------
-    if beamMode is None:
-        _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}',columns=variables)
-    else:
-        _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}'+ f'/HX:BMODE={beamMode.upper()}',columns=variables)
+    if fill is not None:
+        if beamMode is None:
+            _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}',columns=variables)
+        else:
+            _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}'+ f'/HX:BMODE={beamMode.upper()}',columns=variables)
+    elif file is not None:
+        _partition = dd.read_parquet(file,columns=variables)
     #-----------------------------
 
     df        = _partition.compute()
@@ -194,7 +197,7 @@ def from_parquet(fill=None,variables = None,beamMode = None,data_path= _default_
 
     return df
 
-def from_parquet2bin(fill=None,variables = None,rename=None,dt = 60,bins=None,beamMode = None,data_path= _default_path):
+def from_parquet2bin(fill=None,file = None,variables = None,rename=None,dt = 60,bins=None,beamMode = None,data_path= _default_path):
     
     if bins is None:
         unix_s,unix_e = fill_unix_times(fill,data_path=data_path)
@@ -205,10 +208,13 @@ def from_parquet2bin(fill=None,variables = None,rename=None,dt = 60,bins=None,be
 
     # Importing the data
     #-----------------------------
-    if beamMode is None:
-        _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}',columns=variables)
-    else:
-        _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}'+ f'/HX:BMODE={beamMode.upper()}',columns=variables)
+    if fill is not None:
+        if beamMode is None:
+            _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}',columns=variables)
+        else:
+            _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}'+ f'/HX:BMODE={beamMode.upper()}',columns=variables)
+    elif file is not None:
+        _partition = dd.read_parquet(file,columns=variables)
     #-----------------------------
 
     _df        = _partition.compute()
