@@ -12,6 +12,7 @@ target_file = '/home/phbelang/bblumi/docs/Monitoring/index.md'
 
 _default_files = '/eos/user/p/phbelang/www/Monitoring_BBCW'
 _default_url   = 'https://phbelang.web.cern.ch/Monitoring_BBCW'
+_default_bbb_url   = 'https://phbelang.web.cern.ch/Monitoring_bbbsignature'
 
 # Importing fill metadata
 #==========================================
@@ -41,9 +42,11 @@ mdFile.new_line()
 
 # Creating table
 #==========================================
-table_header = ["Fill", "Wires status", r"$\beta^*$", "Intensity B1", "Intensity B2" , "Efficiency"]
+table_header = ["Fill", "Wires status", r"$\beta^*$", "Intensity B1", "Intensity B2" , "Efficiency",'B-by-B signature']
 table_content = table_header.copy()
 for index, row in df.iterrows():
+    if int(index) == 8675:
+        continue
     new_row  = [f"**{index}**",f"{row['Wires']}",f"{row['HX:BETASTAR_IP1']:.1f} cm" , f"{row['LHC.BCTDC.A6R4.B1:BEAM_INTENSITY']:.3e}",f"{row['LHC.BCTDC.A6R4.B2:BEAM_INTENSITY']:.3e}" ]
     link_str = ''
     if Path(_default_files +'/'+ row['DBLM']).exists():
@@ -56,10 +59,20 @@ for index, row in df.iterrows():
     else:
         link_str += f"BCTF"
     new_row.append(link_str)
+    
+
+    # BbyB signature
+    link_str = ''
+    link_str += f"[**DBLM**]({_default_bbb_url}/{row['DBLM']}){{target=_blank}}"
+    link_str += ' | '
+    link_str += f"BCTF"
+    new_row.append(link_str)
+
+    # Sending to table
     table_content.extend(new_row)
 mdFile.new_line()
 
-mdFile.new_table(columns=len(table_header), rows=len(df)+1, text=table_content, text_align='center')
+mdFile.new_table(columns=len(table_header), rows=len(df), text=table_content, text_align='center')
 #==========================================
 
 

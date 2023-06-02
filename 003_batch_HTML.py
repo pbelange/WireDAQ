@@ -35,7 +35,8 @@ b_slots   = np.arange(3564)
 _default_device = 'DBLM'
 _default_path   = '/eos/project/l/lhc-lumimod/LuminosityFollowUp/2023/'
 _default_HTML   = '/eos/user/p/phbelang/www/Monitoring_BBCW/DBLM/'
-
+_default_efficiency_HTML   = '/eos/user/p/phbelang/www/Monitoring_efficiency/DBLM/'
+_default_bbbsignature_HTML = '/eos/user/p/phbelang/www/Monitoring_bbbsignature/DBLM/'
 
 
 # Importing fill metadata
@@ -51,22 +52,33 @@ df = pd.concat(df_list).sort_index()
 
 # Running analysis for fills
 for fill in df.index:
+    if fill < 8725:
+        continue
+# for fill in [8775]:
     try:
-        # Creating Efficiency parquet
-        #==========================================
-        subprocess.run(["python", "001_dBLM_efficiency.py", f"{fill}"   ,
-                                                            "-p"      , f"{_default_path}"])
-        #------------------------------------------
+        # # Creating Efficiency parquet
+        # #==========================================
+        # subprocess.run(["python", "001_dBLM_efficiency.py", f"{fill}"   ,
+        #                                                     "-p"      , f"{_default_path}"])
+        # #------------------------------------------
         gc.collect()
         time.sleep(2)
         gc.collect()
 
+        # # Creating HTML file
+        # #==========================================
+        # subprocess.run(["python", "002_efficiency_HTML.py", f"{fill}" ,
+        #                                                 "-p"    , f"{_default_path}",
+        #                                                 "-d"    , f"{_default_device}",
+        #                                                 "-e"    , f"{_default_HTML}"])
+        # #------------------------------------------
+
         # Creating HTML file
         #==========================================
-        subprocess.run(["python", "002_make_HTML.py", f"{fill}" ,
+        subprocess.run(["python", "002_bbbsignature_HTML.py", f"{fill}" ,
                                                         "-p"    , f"{_default_path}",
                                                         "-d"    , f"{_default_device}",
-                                                        "-e"    , f"{_default_HTML}"])
+                                                        "-e"    , f"{_default_bbbsignature_HTML}"])
         #------------------------------------------
         gc.collect()
 

@@ -103,10 +103,12 @@ def compute_dBLM_efficiency(df,beams):
         #---------------------------------
         baseline = {}
         for dblmType in dblmTypes:
-            baseline[dblmType] = np.min(data_dblm[dblmType],axis=0)
+            # baseline[dblmType] = np.min(data_dblm[dblmType],axis=0)
+            baseline[dblmType] = np.mean(np.sort(data_dblm[dblmType][:200,:],axis=0)[50:100,:],axis=0).astype('int32')
 
         for dblmType in dblmTypes:
             data_dblm[dblmType] -= baseline[dblmType]
+            data_dblm[dblmType][data_dblm[dblmType]<= 0] = 0
         #---------------------------------
 
 

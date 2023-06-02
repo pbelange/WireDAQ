@@ -583,7 +583,7 @@ def make_intensity_figure(source,data_I,beam,color):
     fig.yaxis.axis_label = "Intensity [1e11 p+]"
     # fig.yaxis.ticker     = [0,1]
     fig.x_range          = bkmod.Range1d(-10, len(b_slots)+10)
-    fig.yaxis.formatter  = bkmod.NumeralTickFormatter(format="0.0")
+    # fig.yaxis.formatter  = bkmod.NumeralTickFormatter(format="0.0")
     fig.y_range          = bkmod.Range1d(0, 1.05*data_I[beam.name].apply(lambda line: np.max(line)).max())
 
     return fig
