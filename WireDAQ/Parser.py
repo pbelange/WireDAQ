@@ -86,15 +86,6 @@ def from_NXCALS(start_time=None,end_time=None,fill=None,variables = None):
     database      = spark_session.query(start_time=start_time,end_time=end_time,fill=fill,variables = variables)
     #============================================
 
-    # Adding proper timestamp
-    #============================================
-    database = database.sort_index()
-    database.index.name = 'unix'
-    database.insert(0,'Timestamp',database.index)
-    database.insert(1,'Time',1e-9*(database.index - database.index[0]))
-    database['Timestamp'] = database['Timestamp'].apply(lambda t: pd.Timestamp(t).tz_localize('UTC').tz_convert(spark_session.TZONE))
-    #============================================
-
     return database
 
 

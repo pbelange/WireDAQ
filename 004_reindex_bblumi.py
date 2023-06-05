@@ -4,8 +4,16 @@ import numpy as np
 from pathlib import Path
 
 from mdutils.mdutils import MdUtils
+import WireDAQ.NXCALS as nx
 
-
+# Creating NXCALS variable containers
+#------------------------------------------------
+wires     = {'B1': [nx.NXCALSWire(loc = loc) for loc in ['L1B1','L5B1']],
+             'B2': [nx.NXCALSWire(loc = loc) for loc in ['R1B2','R5B2']]}
+beams     = [nx.NXCALSBeam(name) for name in ['B1','B2']]
+LHC       = nx.NXCALSLHC()
+b_slots   = np.arange(3564)
+#------------------------------------------------
 
 header_file = '/home/phbelang/bblumi/docs/Monitoring/header_index.md'
 target_file = '/home/phbelang/bblumi/docs/Monitoring/index.md'
@@ -42,12 +50,11 @@ mdFile.new_line()
 
 # Creating table
 #==========================================
-table_header = ["Fill", "Wires status", r"$\beta^*$", "Intensity B1", "Intensity B2" , "Efficiency",'B-by-B signature']
+table_header = ["Fill", "Wires status", r"$\beta^*$", "Bunches B1/B2", "Efficiency",'B-by-B signature']
 table_content = table_header.copy()
 for index, row in df.iterrows():
-    if int(index) == 8675:
-        continue
-    new_row  = [f"**{index}**",f"{row['Wires']}",f"{row['HX:BETASTAR_IP1']:.1f} cm" , f"{row['LHC.BCTDC.A6R4.B1:BEAM_INTENSITY']:.3e}",f"{row['LHC.BCTDC.A6R4.B2:BEAM_INTENSITY']:.3e}" ]
+
+    new_row  = [f"**{index}**",f"{row['Wires']}",f"{row['HX:BETASTAR_IP1']:.1f} cm" , f"{row[beams[0].Nb]:.0f}/{row[beams[1].Nb]:.0f}"]
     link_str = ''
     if Path(_default_files +'/'+ row['DBLM']).exists():
         link_str += f"[**DBLM**]({_default_url}/{row['DBLM']}){{target=_blank}}"
@@ -62,17 +69,29 @@ for index, row in df.iterrows():
     
 
     # BbyB signature
+    # link_str = ''
+    # link_str += f"[**DBLM**]({_default_bbb_url}/{row['DBLM']}){{target=_blank}}"
+    # link_str += ' | '
+    # link_str += f"BCTF"
+
     link_str = ''
-    link_str += f"[**DBLM**]({_default_bbb_url}/{row['DBLM']}){{target=_blank}}"
+    if Path(_default_files +'/'+ row['DBLM']).exists():
+        link_str += f"[**DBLM**]({_default_bbb_url}/{row['DBLM']}){{target=_blank}}"
+    else:
+        link_str += f"DBLM"
     link_str += ' | '
-    link_str += f"BCTF"
+    if Path(_default_files +'/'+ row['BCTF']).exists():
+        link_str += f"[**BCTF**]({_default_bbb_url}/{row['BCTF']}){{target=_blank}}"
+    else:
+        link_str += f"BCTF"
     new_row.append(link_str)
+
 
     # Sending to table
     table_content.extend(new_row)
 mdFile.new_line()
 
-mdFile.new_table(columns=len(table_header), rows=len(df), text=table_content, text_align='center')
+mdFile.new_table(columns=len(table_header), rows=len(df)+1, text=table_content, text_align='center')
 #==========================================
 
 
