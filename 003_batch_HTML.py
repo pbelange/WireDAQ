@@ -32,11 +32,10 @@ b_slots   = np.arange(3564)
 
 # Setting default values
 #------------------------------------------------
-_default_device = 'DBLM'
 _default_path   = '/eos/project/l/lhc-lumimod/LuminosityFollowUp/2023/'
-# _default_HTML   = '/eos/user/p/phbelang/www/Monitoring_BBCW/DBLM/'
-_default_efficiency_HTML   = '/eos/user/p/phbelang/www/Monitoring_efficiency/DBLM/'
-_default_bbbsignature_HTML = '/eos/user/p/phbelang/www/Monitoring_bbbsignature/DBLM/'
+
+_default_efficiency_HTML   = '/eos/user/p/phbelang/www/Monitoring_efficiency/'
+_default_bbbsignature_HTML = '/eos/user/p/phbelang/www/Monitoring_bbbsignature/'
 
 
 # Importing fill metadata
@@ -51,42 +50,42 @@ df = pd.concat(df_list).sort_index()
 
 
 # Running analysis for fills
-for fill in df.index:
+for fill in [8685]:#df.index:
+    for device in ['DBLM','BCTF']:
+        try:
+            # Creating Efficiency parquet
+            #==========================================
+            checkfile = f"{_default_path}/efficiency_data/{device}/FILL{fill}.parquet"
+            if not Path(checkfile).exists():
+                subprocess.run(["python", f"001_{device}_efficiency.py", f"{fill}"   ,
+                                                                    "-p"        , f"{_default_path}",
+                                                                    "-e"        , f"{_default_path}/efficiency_data/{device}/"])
+            #------------------------------------------
+            gc.collect()
+            time.sleep(2)
+            gc.collect()
 
-    try:
-        # Creating Efficiency parquet
-        #==========================================
-        checkfile = f"{_default_path}/efficiency_data/{_default_device}/FILL{fill}.parquet"
-        if not Path(checkfile).exists():
-            subprocess.run(["python", "001_dBLM_efficiency.py", f"{fill}"   ,
-                                                                "-p"        , f"{_default_path}",
-                                                                "-e"        , f"{_default_path}/efficiency_data/{_default_device}/"])
-        #------------------------------------------
-        gc.collect()
-        time.sleep(2)
-        gc.collect()
+            # Creating HTML file
+            #==========================================
+            checkfile = f"{_default_efficiency_HTML}/{device}/FILL{fill}.html"
+            if not Path(checkfile).exists():
+                subprocess.run(["python", "002_efficiency_HTML.py", f"{fill}" ,
+                                                                "-p"    , f"{_default_path}",
+                                                                "-d"    , f"{device}",
+                                                                "-e"    , f"{_default_efficiency_HTML}/{device}/"])
+            #------------------------------------------
 
-        # Creating HTML file
-        #==========================================
-        checkfile = f"{_default_efficiency_HTML}/FILL{fill}.html"
-        if not Path(checkfile).exists():
-            subprocess.run(["python", "002_efficiency_HTML.py", f"{fill}" ,
-                                                            "-p"    , f"{_default_path}",
-                                                            "-d"    , f"{_default_device}",
-                                                            "-e"    , f"{_default_efficiency_HTML}"])
-        #------------------------------------------
+            # Creating HTML file
+            #==========================================
+            checkfile = f"{_default_bbbsignature_HTML}/{device}/FILL{fill}.html"
+            if not Path(checkfile).exists():
+                subprocess.run(["python", "002_bbbsignature_HTML.py", f"{fill}" ,
+                                                                "-p"    , f"{_default_path}",
+                                                                "-d"    , f"{device}",
+                                                                "-e"    , f"{_default_bbbsignature_HTML}/{device}/"])
+            #------------------------------------------
+            gc.collect()
 
-        # Creating HTML file
-        #==========================================
-        checkfile = f"{_default_bbbsignature_HTML}/FILL{fill}.html"
-        if not Path(checkfile).exists():
-            subprocess.run(["python", "002_bbbsignature_HTML.py", f"{fill}" ,
-                                                            "-p"    , f"{_default_path}",
-                                                            "-d"    , f"{_default_device}",
-                                                            "-e"    , f"{_default_bbbsignature_HTML}"])
-        #------------------------------------------
-        gc.collect()
-
-    except Exception as error:
-        # handle the exception
-        print(f"FILL {fill} | An exception occurred:", error)
+        except Exception as error:
+            # handle the exception
+            print(f"FILL {fill}, {device} | An exception occurred:", error)

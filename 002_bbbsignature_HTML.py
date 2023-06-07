@@ -36,7 +36,7 @@ _default_fig_pad    = 100
 _default_device = 'DBLM'
 
 _default_path     = '/eos/project/l/lhc-lumimod/LuminosityFollowUp/2023/'
-_default_out      = '/eos/user/p/phbelang/www/Monitoring_bbbsignature/DBLM'
+_default_out      = f'/eos/user/p/phbelang/www/Monitoring_bbbsignature/{_default_device}'
 
 
 def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _default_device):
@@ -66,7 +66,7 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
     left_ts       = default_ts - pd.Timedelta(minutes=5)
     right_ts      = default_ts + pd.Timedelta(minutes=5)
     
-    source,data_I,data_bb = make_efficiency_source(database,bb_df_list=[bb_df_b1,bb_df_b2],dt_I = dt_I,left=left_ts,right=right_ts)
+    source,data_I,data_E_H,data_E_V,data_bb = make_efficiency_source(database,bb_df_list=[bb_df_b1,bb_df_b2],dt_I = dt_I,left=left_ts,right=right_ts)
     #-------------------------------------
 
     # Overview plot
@@ -91,7 +91,11 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
                                                 bb_b1   = data_bb['B1'],
                                                 bb_b2   = data_bb['B2'],
                                                 bb_I_b1 = data_I['B1'],
-                                                bb_I_b2 = data_I['B2']),
+                                                bb_I_b2 = data_I['B2'],
+                                                bb_EH_b1 = data_E_H['B1'],
+                                                bb_EH_b2 = data_E_H['B2'],
+                                                bb_EV_b1 = data_E_V['B1'],
+                                                bb_EV_b2 = data_E_V['B2']),
                                                 code    =  """
         //====================================================
         //--------------------------------
@@ -121,6 +125,10 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
 
         sourceb1.data.Intensity = bb_I_b1[_m_idx];
         sourceb2.data.Intensity = bb_I_b2[_m_idx];
+        sourceb1.data.Emitt_H = bb_EH_b1[_m_idx];
+        sourceb2.data.Emitt_H = bb_EH_b2[_m_idx];
+        sourceb1.data.Emitt_V = bb_EV_b1[_m_idx];
+        sourceb2.data.Emitt_V = bb_EV_b2[_m_idx];
         
         sourceb1.data.data_avg = average2D(bb_b1.slice(_s_idx,_e_idx));
         sourceb2.data.data_avg = average2D(bb_b2.slice(_s_idx,_e_idx));
@@ -136,7 +144,11 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
                                                 bb_b1   = data_bb['B1'],
                                                 bb_b2   = data_bb['B2'],
                                                 bb_I_b1 = data_I['B1'],
-                                                bb_I_b2 = data_I['B2']),
+                                                bb_I_b2 = data_I['B2'],
+                                                bb_EH_b1 = data_E_H['B1'],
+                                                bb_EH_b2 = data_E_H['B2'],
+                                                bb_EV_b1 = data_E_V['B1'],
+                                                bb_EV_b2 = data_E_V['B2']),
                                                 code    =  """
         //====================================================
         //--------------------------------
@@ -166,6 +178,10 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
 
         sourceb1.data.Intensity = bb_I_b1[_m_idx];
         sourceb2.data.Intensity = bb_I_b2[_m_idx];
+        sourceb1.data.Emitt_H = bb_EH_b1[_m_idx];
+        sourceb2.data.Emitt_H = bb_EH_b2[_m_idx];
+        sourceb1.data.Emitt_V = bb_EV_b1[_m_idx];
+        sourceb2.data.Emitt_V = bb_EV_b2[_m_idx];
         
         sourceb1.data.data_avg = average2D(bb_b1.slice(_s_idx,_e_idx));
         sourceb2.data.data_avg = average2D(bb_b2.slice(_s_idx,_e_idx));
@@ -178,7 +194,7 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
     # Efficiency plot
     #-------------------------------------
     for beam,bb_df,color in zip(beams,[bb_df_b1,bb_df_b2],['royalblue','firebrick']):
-        BOKEH_FIGS[f'BBBSignature {beam.name}'] = make_bbbsignature_figure(source,beam,colors = slider_colors)
+        BOKEH_FIGS[f'BBBSignature {beam.name}'],BOKEH_FIGS[f'widget {beam.name}'] = make_bbbsignature_figure(source,beam,bb_df,colors = slider_colors)
 
         # BOKEH_FIGS[f'BBBSignature {beam.name}'].legend.background_fill_color = color
         # BOKEH_FIGS[f'BBBSignature {beam.name}'].legend.background_fill_alpha = 0.5
@@ -192,11 +208,20 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
         BOKEH_FIGS[f'BBBSignature {beam.name}'].legend.border_line_width     = 4
         BOKEH_FIGS[f'BBBSignature {beam.name}'].legend.border_line_alpha     = 0.9
 
+        BOKEH_FIGS[f'BBBSignature {beam.name}'].outline_line_width = 4
+        BOKEH_FIGS[f'BBBSignature {beam.name}'].outline_line_alpha = 0.4
+        BOKEH_FIGS[f'BBBSignature {beam.name}'].outline_line_color = color
+
     # Intensity
     #-------------------------------------
     for beam,bb_df,color in zip(beams,[bb_df_b1,bb_df_b2],['royalblue','firebrick']):
         BOKEH_FIGS[f'Intensity {beam.name}'] = make_intensity_figure(source,data_I,beam,color)#make_intensity_figure(FILL,database,source,data_I,beam,bb_df,color)
-                                          
+
+    # Emittance
+    #-------------------------------------
+    for beam,bb_df,color in zip(beams,[bb_df_b1,bb_df_b2],['royalblue','firebrick']):
+         for data_E,plane in zip([data_E_H,data_E_V],['H','V']):
+            BOKEH_FIGS[f'Emitt_{plane} {beam.name}'] = make_emittance_figure(source,data_E,plane,beam,color)
     #=====================================
     
 
@@ -210,6 +235,8 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
 
     # Adjusting canvas size:
     for name,_fig in BOKEH_FIGS.items():
+        if 'widget' in name.lower():
+            continue
         _fig.min_border_left  = _default_fig_pad
         _fig.min_border_right = _default_fig_pad
 
@@ -224,22 +251,35 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
     BOKEH_FIGS[f'BBBSignature B2'].y_range = BOKEH_FIGS[f'BBBSignature B1'].y_range
 
     # Making tabs
-    BOKEH_FIGS[f'BBBSignature B1B2'] = bkmod.Tabs(tabs=[  bkmod.TabPanel(child=BOKEH_FIGS[f'BBBSignature B1'], title="Beam 1"), 
-                                                        bkmod.TabPanel(child=BOKEH_FIGS[f'BBBSignature B2'], title="Beam 2")])
+    BOKEH_FIGS[f'BBBSignature B1B2'] = bkmod.Tabs(tabs=[  bkmod.TabPanel(child=bklay.row(BOKEH_FIGS[f'BBBSignature B1'],BOKEH_FIGS[f'widget B1']), title="Beam 1"), 
+                                                        bkmod.TabPanel(child=bklay.row(BOKEH_FIGS[f'BBBSignature B2'],BOKEH_FIGS[f'widget B2']), title="Beam 2")])
 
 
     # Linking both intensities and making grid
     #---------------------------------
     BOKEH_FIGS[f'Intensity B2'].x_range = BOKEH_FIGS[f'Intensity B1'].x_range
     BOKEH_FIGS[f'Intensity B2'].y_range = BOKEH_FIGS[f'Intensity B1'].y_range
-    
+
+    for beam in beams:
+        for plane in ['H','V']:
+            BOKEH_FIGS[f'Emitt_{plane} {beam.name}'].x_range = BOKEH_FIGS[f'Intensity B1'].x_range
+            BOKEH_FIGS[f'Emitt_{plane} {beam.name}'].y_range = BOKEH_FIGS[f'Emitt_H B1'].y_range
+
+
+    # Making tabs
+    BOKEH_FIGS[f'Int. and Emitt'] = bkmod.Tabs(tabs=[  bkmod.TabPanel(child=bklay.column(BOKEH_FIGS['Intensity B1'],BOKEH_FIGS['Intensity B2']), title="Intensity"), 
+                                                       bkmod.TabPanel(child=bklay.column(BOKEH_FIGS['Emitt_H B1'],BOKEH_FIGS['Emitt_H B2'])    , title="Emittance H"),
+                                                       bkmod.TabPanel(child=bklay.column(BOKEH_FIGS['Emitt_V B1'],BOKEH_FIGS['Emitt_V B2'])    , title="Emittance V")])
+
 
     # BOKEH_FIGS['Intensity B1B2'] =  bklay.gridplot([[BOKEH_FIGS['Intensity B1']], [BOKEH_FIGS['Intensity B2']]])#,toolbar_location='right')
     
     
     # Making final layout
     #---------------------------------
-    HTML_LAYOUT = bklay.column(BOKEH_FIGS['Overview'],bklay.gridplot([[BOKEH_FIGS[f'BBBSignature B1B2']],[BOKEH_FIGS['Intensity B1']],[BOKEH_FIGS['Intensity B2']]],toolbar_location='right'))
+    HTML_LAYOUT = bklay.column(BOKEH_FIGS['Overview'],
+                               bklay.gridplot([[BOKEH_FIGS[f'BBBSignature B1B2']],
+                                               [BOKEH_FIGS[f'Int. and Emitt']]],toolbar_location='right'))
     #=====================================
 
     # Removing raw data
@@ -262,8 +302,11 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
 def run_analysis(FILL,data_path=_default_path,device = _default_device):
 
     # Fixing data path
+    # raw_data    = data_path + '/rawdata/'
+    # device_data = data_path + f'/efficiency_data/{device}/'
+
     raw_data    = data_path + '/rawdata/'
-    device_data = data_path + f'/efficiency_data/{device}/'
+    device_data = data_path + f'../2023/efficiency_data/{device}/'
 
 
 
@@ -327,9 +370,9 @@ def run_analysis(FILL,data_path=_default_path,device = _default_device):
 
     df_extra = parser.from_parquet(fill=FILL,variables = variables,beamMode = None,data_path= raw_data)
 
-    # Intensity
+    # Extra bunch-by-bunch data
     #-------------------------------------------------
-    variables = sum([beam._getVarList(subset=['bb_Intensity']) for beam in beams],[])
+    variables = sum([beam._getVarList(subset=['bb_Intensity','bb_Emittance_H','bb_Emittance_V']) for beam in beams],[])
     unix_bins_I  = np.arange(unix_s,unix_e,5*60/1e-9)
     df_intensity = parser.from_parquet2bin(fill=FILL,variables = variables,bins=unix_bins_I,beamMode = None,data_path= raw_data)
 
@@ -476,6 +519,8 @@ def make_efficiency_source(database,bb_df_list=None,dt_I = 300,left=None,right=N
     #=====================================================================
     source  = {}
     data_I  = {}
+    data_E_H= {}
+    data_E_V= {}
     data_bb = {}
     for beam,bb_df in zip(beams,bb_df_list):
         
@@ -491,14 +536,22 @@ def make_efficiency_source(database,bb_df_list=None,dt_I = 300,left=None,right=N
         _data_bb          = 1/_data_bb - 1
         data_bb[beam.name] = _data_bb.apply(lambda line: line[bb_df.index])
 
-        # Computing average intensity
+        # Computing average intensity and emittance
         _data_I           = database.set_index('Timestamp')[beam.bb_Intensity].dropna()
         data_I[beam.name] = _data_I.groupby(pd.Grouper(freq=f'{dt_I}s')).mean().apply(lambda line: line[bb_df.index]/1e11)
+
+        _data_           = database.set_index('Timestamp')[beam.bb_Emittance_H].dropna()
+        data_E_H[beam.name] = _data_.groupby(pd.Grouper(freq=f'{dt_I}s')).mean().apply(lambda line: line[bb_df.index])
+
+        _data_           = database.set_index('Timestamp')[beam.bb_Emittance_V].dropna()
+        data_E_V[beam.name] = _data_.groupby(pd.Grouper(freq=f'{dt_I}s')).mean().apply(lambda line: line[bb_df.index])
 
 
         # Compiling data to source
         _source_df   = pd.DataFrame({   'Bunch'     :bb_df.index,
                                         'Intensity' :data_I[beam.name][left + (right-left)/2:][0],
+                                        'Emitt_H'   :data_E_H[beam.name][left + (right-left)/2:][0],
+                                        'Emitt_V'   :data_E_V[beam.name][left + (right-left)/2:][0],
                                         'data_l'    :data_bb[beam.name][left:][0],
                                         'data_avg'  :data_bb[beam.name][left:right].mean(),
                                         'data_r'    :data_bb[beam.name][right:][0],
@@ -508,7 +561,7 @@ def make_efficiency_source(database,bb_df_list=None,dt_I = 300,left=None,right=N
         source[beam.name] = bkmod.ColumnDataSource(_source_df)
     #=====================================================================
 
-    return source,data_I,data_bb
+    return source,data_I,data_E_H,data_E_V,data_bb
 
 
 
@@ -593,7 +646,7 @@ class Windower():
         
 
 
-def make_bbbsignature_figure(source,beam,colors = {'left':'coral','right':'mediumseagreen'}):
+def make_bbbsignature_figure(source,beam,bb_df,colors = {'left':'coral','right':'mediumseagreen'}):
 
     # Creating Figure
     #=====================================
@@ -606,7 +659,7 @@ def make_bbbsignature_figure(source,beam,colors = {'left':'coral','right':'mediu
                     toolbar_location= "right")
 
     # No grid
-    fig.grid.visible = False
+    # fig.grid.visible = False
     
     # Saving tools to tags
     fig.tags = [{str(type(t)).split('.')[-1].split('\'')[0]:t for t in fig.tools}]
@@ -620,19 +673,94 @@ def make_bbbsignature_figure(source,beam,colors = {'left':'coral','right':'mediu
     c_avg   = fig.circle(x='Bunch', y='data_avg', color=colors['avg']   ,name=f"{beam.name}",legend_label= 'Average'    ,source=source[beam.name],fill_alpha=0.5,size=6,line_width=1,line_color=colors['avg']) 
     c_right = fig.circle(x='Bunch', y='data_r'  , color=colors['right'] ,name=f"{beam.name}",legend_label= 'Cursor 2'   ,source=source[beam.name],fill_alpha=0.5,size=6,line_width=1,line_color=colors['right'])
 
-    # vbars.selection_glyph = bkmod.glyphs.VBar(line_color='black',fill_color=color)
-    # vbars.nonselection_glyph = bkmod.glyphs.VBar(fill_color=color,fill_alpha=0.3,line_color=None)
 
-    # Vertical line
-    # l1 = bkmod.Span(location=0, dimension='height', line_color='black',line_alpha=0.5)
-    # l2 = bkmod.Span(location=len(b_slots), dimension='height', line_color='black',line_alpha=0.5)
-    # fig.renderers.extend([l1,l2])
     fig.xaxis.axis_label = "Bunch slot"
     fig.yaxis.axis_label = "Normalised losses: losses/(sigma*lumi)"
-    # fig.yaxis.ticker     = [0,1]
     fig.x_range          = bkmod.Range1d(-10, len(b_slots)+10)
-    # fig.yaxis.formatter  = bkmod.NumeralTickFormatter(format="0.0")
-    fig.y_range          = bkmod.Range1d(0, 1.05*2)
+    fig.y_range          = bkmod.Range1d(-0.2, 3)
+
+
+    # Adding BBB Signature
+    # Finding schedule info
+    schedule_dict = {}
+    for exp,ip in zip(['ATLAS','CMS','ALICE','LHCB'],[1,5,2,8]):
+        schedule_dict[f'LR IP{ip} ({exp})'] = bb_df[f'# of LR in {exp}'].values.astype(float)
+        schedule_dict[f'HO IP{ip} ({exp})'] = bb_df[f'HO partner in {exp}'].apply(lambda line: (~np.isnan(line)).astype(float)).values
+    schedule_df = pd.DataFrame(schedule_dict,index = bb_df.index)
+    schedule_df.insert(0,'Bunch',bb_df.index)
+    schedule_df.insert(1,'Default',0.0)
+    schedule_df.insert(1,'Active',0.0)
+    #schedule_df
+
+    # Creating Checkbox list
+    source_sched = bkmod.ColumnDataSource(schedule_df)
+    checklist    = ['Clear all'] + sorted(list(schedule_df.columns[3:]))
+    widget    = bkmod.CheckboxGroup(labels=checklist, active=[])
+
+    slider_amp    = bkmod.Slider(start=0.01, end=2, value=1, step=0.01,title='Amplitude')
+    slider_offset = bkmod.Slider(start=-5, end=5, value=0, step=0.05, title="Offset")
+
+
+
+
+    # checkbox_group = CheckboxGroup(labels=LABELS, active=[0, 1])
+    callback = bkmod.callbacks.CustomJS(args = dict(source        = source_sched,
+                                                    widget        = widget,
+                                                    checklist     = checklist,
+                                                    slider_amp    = slider_amp,
+                                                    slider_offset = slider_offset),
+                                                code = """
+        //====================================================
+        //--------------------------------
+        function addvector(a,b){
+            return a.map((e,i) => e + b[i]);
+        }
+        //--------------------------------
+
+
+
+        if (widget.active.includes(0)){
+            widget.active = [];
+            slider_amp.value = 1;
+            slider_offset.value = 0;
+        }
+
+        
+        var active_col = source.data['Default']
+        for (const _col of widget.active) {
+            active_col = addvector(active_col,source.data[checklist[_col]]);
+        }
+
+
+
+        
+        const max_value = Math.max.apply(Math, active_col);
+        active_col = active_col.map((e,i) => e/max_value*slider_amp.value + slider_offset.value);
+
+
+
+
+
+        source.data['Active'] = active_col;
+        source.change.emit();
+        slider_amp.change.emit();
+        slider_offset.change.emit();
+        //====================================================""")
+
+    widget.js_on_change('active',callback)
+    slider_amp.js_on_change('value',callback)
+    slider_offset.js_on_change('value',callback)
+
+
+    # Creating new axis for bb_signature
+    ax,axis_name = new_axis(fig,axis_name='bb_signature')
+    ax.axis_label = "Beam-Beam Interactions"
+    fig.extra_y_ranges[axis_name] = bkmod.Range1d(0,1.05,min_interval=1.05)
+
+
+    # Adding schedule
+    bbb_count  = fig.circle(x='Bunch', y='Active'  , color='black' ,y_range_name='bb_signature',legend_label='BB Schedule' ,source=source_sched,fill_alpha=0.4,size=6,line_width=1,line_color='black')
+    bbb_count.visible = False
 
     # Legend Options
     #=====================================
@@ -641,7 +769,8 @@ def make_bbbsignature_figure(source,beam,colors = {'left':'coral','right':'mediu
     fig.legend.title        = f"Beam {beam.name[-1]}"
     #=====================================
 
-    return fig
+
+    return fig,bklay.column(widget,slider_amp,slider_offset)
 
 
 
@@ -687,6 +816,47 @@ def make_intensity_figure(source,data_I,beam,color):
 
     return fig
 
+def make_emittance_figure(source,data_E,plane,beam,color):
+
+    # Creating Figure
+    #=====================================
+    fig = bk.figure(output_backend  = "webgl",
+                    height          = _default_fig_height//2, 
+                    width           = _default_fig_width,
+                    title           = f"Bunch Emittance {plane}", 
+                    tools           = "box_zoom,pan,reset,save,hover",
+                    active_drag     = "box_zoom",
+                    toolbar_location= "right")
+
+    # No grid
+    fig.grid.visible = False
+    
+    # Saving tools to tags
+    fig.tags = [{str(type(t)).split('.')[-1].split('\'')[0]:t for t in fig.tools}]
+    # fig.tags[0]['BoxSelectTool'].update(dimensions='width',persistent=False,icon=Path('WireDAQ/Icons/selector_icon.png'))
+    # fig.tags[0]['BoxZoomTool'].update(dimensions = 'width')
+    # fig.tags[0]['PanTool'].update(dimensions = 'width')
+    fig.tags[0]['HoverTool'].update(tooltips = [(f'Beam', '$name'),('Bunch slot','$x{0}')])
+    #=====================================
+
+
+    vbars = fig.vbar(x='Bunch', top=f'Emitt_{plane}', width=0.8,color=color,name=f"{beam.name}",source=source[beam.name]) 
+
+    # vbars.selection_glyph = bkmod.glyphs.VBar(line_color='black',fill_color=color)
+    vbars.nonselection_glyph = bkmod.glyphs.VBar(fill_color=color,fill_alpha=0.3,line_color=None)
+
+    # Vertical line
+    # l1 = bkmod.Span(location=0, dimension='height', line_color='black',line_alpha=0.5)
+    # l2 = bkmod.Span(location=len(b_slots), dimension='height', line_color='black',line_alpha=0.5)
+    # fig.renderers.extend([l1,l2])
+    fig.xaxis.axis_label = "Bunch slot"
+    fig.yaxis.axis_label = "Emittance [um]"
+    # fig.yaxis.ticker     = [0,1]
+    fig.x_range          = bkmod.Range1d(-10, len(b_slots)+10)
+    # fig.yaxis.formatter  = bkmod.NumeralTickFormatter(format="0.0")
+    fig.y_range          = bkmod.Range1d(0, 1.05*data_E[beam.name].apply(lambda line: np.max(line)).max())
+
+    return fig
 
 def export_HTML(LAYOUT,filename,tabname):
 
@@ -714,7 +884,7 @@ if __name__ == '__main__':
     assert Path(args.export).exists(), 'Invalid export path'
     
     print(40*'*')
-    print(f' make_HTML on F{args.FILL}\n | Device: \t{args.device}\n | Data path: \t{args.path}\n | Export to: \t{args.export}/FILL{args.FILL}.html')
+    print(f' bbbsignature_HTML on F{args.FILL}\n | Device: \t{args.device}\n | Data path: \t{args.path}\n | Export to: \t{args.export}/FILL{args.FILL}.html')
     print(40*'*')
 
     Efficiency_to_HTML(args.FILL, HTML_name= args.export + f'/FILL{args.FILL}.html',device=args.device,data_path=args.path)

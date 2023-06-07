@@ -188,7 +188,7 @@ def from_parquet(fill=None,file = None,variables = None,beamMode = None,data_pat
 
     return df
 
-def from_parquet2bin(fill=None,file = None,variables = None,rename=None,dt = 60,bins=None,beamMode = None,data_path= _default_path):
+def from_parquet2bin(fill=None,file = None,variables = None,rename=None,dt = 60,bins=None,beamMode = None,data_path= _default_path,keeptype = True):
     
     if bins is None:
         unix_s,unix_e = fill_unix_times(fill,data_path=data_path)
@@ -217,7 +217,7 @@ def from_parquet2bin(fill=None,file = None,variables = None,rename=None,dt = 60,
     for col in _df.columns:
 
         observable = col
-        per_var_list.append(_df.bin_unix(observable,bins=unix_bins))
+        per_var_list.append(_df.bin_unix(observable,bins=unix_bins,keeptype=keeptype))
     #-----------------------------
 
     # Appending

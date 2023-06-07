@@ -18,8 +18,8 @@ b_slots   = np.arange(3564)
 header_file = '/home/phbelang/bblumi/docs/Monitoring/header_index.md'
 target_file = '/home/phbelang/bblumi/docs/Monitoring/index.md'
 
-_default_files = '/eos/user/p/phbelang/www/Monitoring_BBCW'
-_default_url   = 'https://phbelang.web.cern.ch/Monitoring_BBCW'
+_default_files = '/eos/user/p/phbelang/www/Monitoring_efficiency'
+_default_url   = 'https://phbelang.web.cern.ch/Monitoring_efficiency'
 _default_bbb_url   = 'https://phbelang.web.cern.ch/Monitoring_bbbsignature'
 
 # Importing fill metadata

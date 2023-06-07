@@ -127,8 +127,52 @@ def bin_unix(self,_var,bins=None,keeptype = True):
     unix  = pd.Series(grouped.groups.keys()).apply(lambda line:line.mid.astype(_type)).values
 
     return pd.DataFrame({_var:values},index=unix)
-PandasObject.bin_unix  = bin_unix
+# PandasObject.bin_unix  = bin_unix
 #=================================================
+
+
+def bin_unix_v2(self,_var,bins=None,keeptype = True):
+    # GROUPING DATA IN TIME WINDOWS
+    sub     = self.dropna(subset=[_var])
+    grouped = sub.groupby(pd.cut(sub.index,bins=bins))
+
+    # AVG in each time window
+    if keeptype:
+        _type  = sub.iloc[0][_var].dtype
+        values = grouped[_var].mean().dropna().apply(lambda line: line.astype(_type))
+    else:
+        values = grouped[_var].mean()
+
+    _type = sub.index.dtype
+    # unix  = pd.Series(grouped.groups.keys()).apply(lambda line:line.mid.astype(_type)).values
+    values.index = pd.Index(list(pd.Series(values.index).apply(lambda line:line.mid.astype(_type))),name='unix')
+    _df = values.to_frame()
+    # _df.index.name = 'unix'
+
+    return _df
+PandasObject.bin_unix  = bin_unix_v2
+#=================================================
+
+def bin_unix_v3(self,_var,bins=None,keeptype = True):
+    # GROUPING DATA IN TIME WINDOWS
+    sub     = self.dropna(subset=[_var])
+    grouped = sub.groupby(pd.cut(sub.index,bins=bins))
+
+    # AVG in each time window
+    if keeptype:
+        _type  = sub.iloc[0][_var].dtype
+        values = grouped[_var].mean().dropna().apply(lambda line: line.astype(_type))
+    else:
+        values = grouped[_var].mean()
+
+    _type = sub.index.dtype
+    
+    unix  = pd.Series(values.index).apply(lambda line:line.mid.astype(_type)).values
+
+    return pd.DataFrame({_var:values.values},index=unix)
+# PandasObject.bin_unix  = bin_unix_v3
+#=================================================
+
 
 
 # Manipulate Bunch-by-bunch

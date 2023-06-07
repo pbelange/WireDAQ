@@ -75,4 +75,7 @@ if __name__ == '__main__':
 
     # Saving to parquet
     #============================================
-    df.to_parquet(f'{args.export}/FILL{args.FILL}.parquet')
+    mkdir = HX:FILLN
+    if not Path(f'{args.export}/HX:FILLN={ars.FILL}').exists():
+        Path(f'{args.export}/HX:FILLN={ars.FILL}').mkdir()
+    df.to_parquet(f'{args.export}/HX:FILLN={ars.FILL}/FILL{args.FILL}.parquet')

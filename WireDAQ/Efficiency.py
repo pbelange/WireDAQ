@@ -3,7 +3,15 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import scipy.interpolate as sciInterp
-# import pynumdiff
+
+# Deactivating INFO loggings from pynumdiff
+#----------------
+import logging
+logging.basicConfig(level=logging.WARNING)
+import pynumdiff
+#----------------
+
+
 import gc
 
 # Local imports
@@ -108,7 +116,7 @@ def compute_dBLM_efficiency(df,beams):
 
         for dblmType in dblmTypes:
             data_dblm[dblmType] -= baseline[dblmType]
-            data_dblm[dblmType][data_dblm[dblmType]<= 0] = 0
+            data_dblm[dblmType][data_dblm[dblmType]<= 0] *= -1
         #---------------------------------
 
 
@@ -136,245 +144,133 @@ def compute_dBLM_efficiency(df,beams):
 
 
 
+#=====================
+# BCTF
+#=====================
 
 
-# def calibrate_BCT(df,dt=20,calibration_ts = None,reference = LHC['bb_Luminosity']['ATLAS']):
+def compute_BCT_avg(df,return_raw=False):
 
-#     # Computing intensity avg (every 20 seconds)
-#     binWind = dt
-
-#     # Calibration around max intensity
-#     if calibration_ts is None:
-#         _I      = df.set_index('Timestamp')[beams[0]['Intensity']].dropna()
-#         max_loc = _I.argmax()
-#         calibration_ts = _I.index[max_loc+20]
-
-#     _times   = df.set_index('Time')[reference].dropna().index
-#     bins     = np.arange(_times[0]+binWind/2,_times[-1],binWind)
-
-#     new_dict = {}
-#     for beam in beams:
-
-#         observable = beam['Intensity']
-        
-#         times,ref  = df.bin(observable,bins=bins)[['Time',observable]].T.to_numpy()
-#         calib_time = df.at_ts(calibration_ts,'Time',method='nearest')
-#         calib_idx  = np.argmin(np.abs(times-calib_time))
-
-
-#         observable = beam['bb_Intensity']
-#         total_A    = df.bin(observable,bins=bins)[observable]
-#         calib_A    = np.mean((ref/total_A.apply(lambda line:np.sum(line)))[calib_idx:calib_idx+int(10*(60/binWind))])
-
-#         new_dict[f'bb_Intensity_A_{beam.name}'] = total_A*calib_A
-
-#         observable = beam['bb_Intensity_B']
-#         total_B    = df.bin(observable,bins=bins)[observable]
-#         calib_B   = np.mean((ref/total_B.apply(lambda line:np.sum(line)))[calib_idx:calib_idx+int(10*(60/binWind))])
-
-#         # B1 BCTFR-B needs rolling of 1 bucket (let's make it general):
-#         #-------------------------------------
-        
-#         rolling = b_slots[(total_A.values[calib_idx]>0.5e10)&(b_slots<3562)][-1]-b_slots[(total_B.values[calib_idx]>0.5e10)&(b_slots<3562)][-1]
-#         if rolling != 0 :
-#             total_B = total_B.apply(lambda line: np.roll(line,rolling))
-#             print(f'MISALIGNED {beam.name}, ROLLING BY {rolling}')
-        
-#         #-------------------------------------
-
-#         new_dict[f'bb_Intensity_B_{beam.name}']   = total_B*calib_B
-
-#         new_dict[f'bb_Intensity_avg_{beam.name}'] = (new_dict[f'bb_Intensity_A_{beam.name}'] + new_dict[f'bb_Intensity_B_{beam.name}'])/2
-
-
-
-#     return pd.concat([  df.bin(beams[0]['Intensity'],bins=bins)[['unix','Timestamp','Time']],
-#                         pd.DataFrame(new_dict)],axis=1).set_index('unix')
-
-# #================================================
-
-
-# #============================================================================
-# # Efficiency calculations
-# #============================================================================
-
-# # FAST BCT
-# #----------------------------------
-# def compute_BCTF_efficiency(df,beam,dt= 60,smooth_derivative=False):
-
-#     #----------------------------------------
-#     # Luminosity is measured every minute, let's use it without too much manipulations
-#     tmp = df.set_index('Time')['bb_LUMI_TOT'].dropna().index
     
-#     # forcing constant time steps and aligned at max of lumi
-#     dt      = dt
-#     idx_max = np.argmax(df.set_index('Time')['bb_LUMI_TOT'].dropna().apply(lambda line: np.sum(line)))
-#     times   = np.concatenate([np.arange(tmp[idx_max]-dt,tmp[0],-dt)[::-1],np.arange(tmp[idx_max],tmp[-1],dt)])
+    idx_max = df[beams[0].Intensity].argmax()
+    s_calib = int(df.index[idx_max] + 2*60*1e9)
+    e_calib = int(s_calib + 10*60*1e9)
 
-#     assert dt > np.mean(np.diff(tmp)),f'dt must be larger than the sampling rate of the luminosity: {np.mean(np.diff(tmp))} s'
-#     bins    = np.diff(times)/2 + times[:-1] 
-#     #-----------------------------------------
+    new_dict = {}
+    for beam in beams:
 
-#     #-----------------------------------------
-
-#     # Extracting data
-#     #-----------------------------------------
-#     observable     = f'bb_Intensity_avg_{beam.name}'
-#     times_N,data_N = df.bin(observable,bins=bins).set_index('Time')[observable].dropna().to_2D()
-
-#     observable     = 'bb_LUMI_TOT'
-#     times_L,data_L = df.set_index('Time')[observable].dropna().to_2D()
-#     #----------------------------------------
-
-
-#     # Aligning times with interpolation
-#     #---------------------------------
-#     times   = times[10:-2]
-#     data_N  =     sciInterp.interp1d(times_N,data_N,axis=0)(times)
-#     data_L  = 1e6*sciInterp.interp1d(times_L,data_L,axis=0)(times)
-#     #---------------------------------
-
-#     # Computing efficiency
-#     #---------------------------------
-#     if smooth_derivative:
-#         params = [18,2]
-#         dNdt   = np.nan*data_N.copy()
-#         for bucket in b_slots:
-#             N_hat,dNdt_hat   = pynumdiff.smooth_finite_difference.meandiff(data_N[:,bucket], np.mean(np.diff(times_N)), params, options={'iterate': True})
-#             dNdt[:,bucket]   = dNdt_hat
-#             data_N[:,bucket] = N_hat
-
-#         dNdt = sciInterp.interp1d(times_N,dNdt,axis=0)(times) 
-#     else:   
-#         dNdt = first_order_diff(data_N,dt)
-
-#     eta      = cst.SIG_PP*data_L/(-dNdt)
-#     sig_eff  = cst.SIG_PP/eta
-#     lifetime = -data_N/(dNdt-cst.SIG_PP*data_L)
-#     #---------------------------------
-
-
-#     # UNPACKING RESULTS
-#     bin_unix      = (times - df.iloc[0]['Time'])*1e9 + df.index[0]
-#     bin_timestamp = [pd.Timestamp(t).tz_localize('UTC').tz_convert(cst.TZONE) for t in bin_unix]
-
-
-#     return pd.DataFrame({   'Time':times,'Timestamp':bin_timestamp,
-#                             'Luminosity':list(data_L),
-#                             'Intensity' :list(data_N),
-#                             'dNdt'      :list(dNdt),
-#                             'eta'       :list(eta),
-#                             'sig_eff'   :list(sig_eff),
-#                             'lifetime'  :list(lifetime)},index=bin_unix)
+        observable = beam['Intensity']
+        ref   = df[observable].dropna()
+        times = ref.index 
 
 
 
-# # Diamond BLM
-# #----------------------------------
-# def compute_dBLM_efficiency(df,beam,dt = 10,baseline = None,calib_ROI=None,filled_b_slots=None):
+        observable = beam['bb_Intensity']
+        total_A    = df[observable].dropna()
+        calib_A    = np.mean((ref/total_A.apply(lambda line: np.sum(line))).loc[s_calib:e_calib])
 
-#     # Still binning every 10 seconds to reduce the noise
+        new_dict[f'bb_Intensity_A_{beam.name}'] = total_A*calib_A
 
-#     #----------------------------------------
-#     # Luminosity is measured every minute, let's use it without too much manipulations
-#     tmp = df.set_index('Time')['bb_LUMI_TOT'].dropna().index
-    
-#     # forcing constant time steps and aligned at max of lumi
-#     dt      = dt
-#     idx_max = np.argmax(df.set_index('Time')['bb_LUMI_TOT'].dropna().apply(lambda line: np.sum(line)))
-#     _times   = np.concatenate([np.arange(tmp[idx_max]-dt,tmp[0],-dt)[::-1],np.arange(tmp[idx_max],tmp[-1],dt)])
+        observable = beam['bb_Intensity_B']
+        total_B    = df[observable].dropna()
+        calib_B    = np.mean((ref/total_B.apply(lambda line: np.sum(line))).loc[s_calib:e_calib])
 
+        # B1 BCTFR-B needs rolling of 1 bucket (let's make it general):
+        #-------------------------------------
+        
+        rolling = b_slots[(total_A.loc[s_calib:].iloc[0]>0.5e10)&(b_slots<3562)][-1]-b_slots[(total_B.loc[s_calib:].iloc[0]>0.5e10)&(b_slots<3562)][-1]
+        if rolling != 0 :
+            total_B = total_B.apply(lambda line: np.roll(line,rolling))
+            print(f'MISALIGNED {beam.name}, ROLLING BY {rolling}')
+        
+        #-------------------------------------
 
-#     # assert dt > np.mean(np.diff(_times)),f'dt must be larger than the sampling rate of the luminosity: {np.mean(np.diff(_times))} s'
-#     bins     = np.arange(_times[0]+dt/2,_times[-1],dt)
+        new_dict[f'bb_Intensity_B_{beam.name}']   = total_B*calib_B
 
-#     # Extracting data
-#     #-----------------------------------------
-#     observable     = f'bb_Intensity_avg_{beam.name}'
-#     times_N,data_N = df.bin(observable,bins=bins).set_index('Time')[observable].dropna().to_2D()
+        new_dict[f'bb_Intensity_avg_{beam.name}'] = (new_dict[f'bb_Intensity_A_{beam.name}'] + new_dict[f'bb_Intensity_B_{beam.name}'])/2
 
-#     observable     = 'bb_LUMI_TOT'
-#     times_L,data_L = df.set_index('Time')[observable].dropna().to_2D()  
+    # Removing raw data
+    #-----------------------------
+    if not return_raw:
+        new_dict.pop('bb_Intensity_A_B1')
+        new_dict.pop('bb_Intensity_B_B1')
+        new_dict.pop('bb_Intensity_A_B2')
+        new_dict.pop('bb_Intensity_B_B2')
+    #-----------------------------
+        del(total_A)
+        del(total_B)
+        del(ref)
+    gc.collect()
+    #-----------------------------
 
-
-#     data_dblm = {}
-#     for dblmType in ['V','H-V-S']:
-#         observable       = beam.dBLM_Amp[dblmType]
-#         times_dblm,_data = df.bin(observable,bins=bins).set_index('Time')[observable].dropna().to_2D()
-#         data_dblm[dblmType] = _data
-#     #-----------------------------------------
-
-
-#     # Aligning times with interpolation
-#     #---------------------------------
-#     # IF NEEDED : bounds_error=False,fill_value=np.nan
-#     times     = times_dblm[10:-10]
-#     data_N    = sciInterp.interp1d(times_N,data_N,axis=0,bounds_error=False,fill_value=np.nan)(times)
-#     data_L    = 1e6*sciInterp.interp1d(times_L,data_L,axis=0,bounds_error=False,fill_value=np.nan)(times)
-
-#     for dblmType in ['V','H-V-S']:
-#         data_dblm[dblmType]  = sciInterp.interp1d(times_dblm,data_dblm[dblmType],axis=0)(times)
-#     #---------------------------------
+    return pd.DataFrame(new_dict)
 
 
-#     # Computing xsection
-#     #==================================
-#     # Substracting baseline
-#     #---------------------------------
-#     if baseline is not None:
-#         assert(isinstance(baseline,dict)),'baseline must be specified for each bunch and each dblm type'
-#     else:
-#         baseline = {}
-#         for dblmType in ['V','H-V-S']:
-#             baseline[dblmType] = np.min(data_dblm[dblmType],axis=0)
-
-#     for dblmType in ['V','H-V-S']:
-#         data_dblm[dblmType] -= baseline[dblmType]
-#     #---------------------------------
-
-#     # Calibration:
-#     #---------------------------------
-#     if calib_ROI is not None:
-#         time_calib,data_calib = df.set_index('Timestamp')[calib_ROI[0]:calib_ROI[1]].set_index('Time')[f'Luminosity'].dropna().to_2D()
-#         lumi_losses           = np.trapz(80e-3*data_calib,time_calib,axis=0)
-
-#         time_calib,data_calib = df.set_index('Timestamp')[calib_ROI[0]:calib_ROI[1]].set_index('Time')[f'{beam.name}_dNdt'].dropna().to_2D()
-#         target_bb             = np.trapz(-data_calib,time_calib,axis=0)-lumi_losses
-#         # target_bb             = np.sum(np.trapz(-data_calib,time_calib,axis=0)-lumi_losses)
-
-#         tot_loss = {}
-#         _ROI = (times>time_calib[0])&(times<time_calib[-1])
-#         for dblmType in ['V','H-V-S']:
-#             tot_loss[dblmType] = np.trapz(data_dblm[dblmType][_ROI,:],times[_ROI],axis=0)
-#             # tot_loss[dblmType] = np.sum(np.trapz(data_dblm[dblmType][_ROI,:],times[_ROI],axis=0))
-
-#         calib_factor = target_bb /(tot_loss['V']+tot_loss['H-V-S'])
-#         for dblmType in ['V','H-V-S']:
-#             data_dblm[dblmType] *= np.mean(calib_factor[filled_b_slots]) 
-#     #---------------------------------
 
 
-#     # Computing efficiency
-#     #=================================
-#     R_ellN   = data_dblm['V']+data_dblm['H-V-S']
-#     dNdt     = cst.SIG_PP*data_L+R_ellN
-#     eta      = cst.SIG_PP*data_L/(cst.SIG_PP*data_L+R_ellN)
-#     sig_eff  = cst.SIG_PP/eta
-#     lifetime = -data_N/(R_ellN)
-#     #==================================
+def compute_BCTF_efficiency(df,beams,smooth_window=None ,smooth_iter=1):
 
-#     # UNPACKING RESULTS
-#     bin_unix      = (times - df.iloc[0]['Time'])*1e9 + df.index[0]
-#     bin_timestamp = [pd.Timestamp(t).tz_localize('UTC').tz_convert(cst.TZONE) for t in bin_unix]
+    # Extracting Lumi
+    #-----------------------------------------
+    observable     = 'bb_LUMI_TOT'
+    times_L,data_L = df[observable].dropna().to_2D()
+    #-----------------------------------------
+
+    # Fixing time vector
+    #---------------------------------
+    crop_by   = 10
+    _tmp_time = df[f'bb_Intensity_avg_B1'].dropna().index
+    dt        = np.min(np.diff(_tmp_time))
+    times     = np.arange(_tmp_time[0],_tmp_time[-1],dt)[crop_by:-crop_by]
+    #---------------------------------
+
+    # Aligning lumi with interpolation
+    #---------------------------------
+    data_L  = 1e6*sciInterp.interp1d(times_L,data_L,axis=0,bounds_error=False,fill_value=np.nan)(times)
+    #---------------------------------
+
+    per_beam_results = {}
+    for beam in beams:
+
+        observable     = f'bb_Intensity_avg_{beam.name}'
+        times_N,data_N = df[observable].dropna().to_2D()
+
+        # Computing dNdt
+        #---------------------------------
+        if smooth_window is not None:
+            # Computing dNdt
+            dNdt   = np.nan*data_N.copy()
+            for bucket in b_slots:
+                N_hat,dNdt_hat  = pynumdiff.smooth_finite_difference.meandiff(data_N[:,bucket], dt/1e9, [smooth_window,smooth_iter], options={'iterate': True})
+                dNdt[:,bucket]   = dNdt_hat
+                data_N[:,bucket] = N_hat 
+        else:
+            data_N = sciInterp.interp1d(times_N,data_N,axis=0)(times)
+            dNdt   = first_order_diff(data_N,dt/1e9)
+        #---------------------------------
+
+        # Aligning times with interpolation
+        #---------------------------------
+        dNdt  =     sciInterp.interp1d(times_N,dNdt,axis=0,bounds_error=False,fill_value=np.nan)(times)
+        #---------------------------------
+
+        # Computing efficiency
+        #---------------------------------
+        eta      = cst.SIG_PP*data_L/(-dNdt)
+        sig_eff  = cst.SIG_PP/eta
+        #---------------------------------
+
+        # Unpacking results
+        per_beam_results[f'{beam.name}:eta']     = list(eta)
+        per_beam_results[f'{beam.name}:sig_eff'] = list(sig_eff)
 
 
-#     return    pd.DataFrame({'Time':times,'Timestamp':bin_timestamp,
-#                             'Luminosity'   :list(data_L),
-#                             'Intensity'    :list(data_N),
-#                             'dNdt'         :list(dNdt),
-#                             'Losses V'     :list(data_dblm['V']),
-#                             'Losses H-V-S' :list(data_dblm['H-V-S']),
-#                             'eta'          :list(eta),
-#                             'sig_eff'      :list(sig_eff),
-#                             'lifetime'     :list(lifetime)},index=bin_unix)
+    # Removing raw data
+    #-----------------------------
+    del(data_L)
+    del(data_N)
+    del(dNdt)
+    gc.collect()
+    #-----------------------------
 
+    return pd.DataFrame(per_beam_results,index=times)
