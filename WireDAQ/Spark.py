@@ -31,7 +31,8 @@ class SparkSession():
         # Creating spark instance (using LOCAL instead of YARN_LARGE)
         logging.info('Creating the spark instance')
 
-        _spark = get_or_create(flavor= Flavor.LOCAL,
+        _spark = get_or_create(#flavor= Flavor.LOCAL,
+                               flavor=Flavor.YARN_LARGE, master='yarn',
                                 conf= { 'spark.driver.maxResultSize': '8g', 
                                         'spark.executor.memory'     : '8g',
                                         'spark.driver.memory'       : '16g',

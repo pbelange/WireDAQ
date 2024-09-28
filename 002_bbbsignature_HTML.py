@@ -224,7 +224,7 @@ def Efficiency_to_HTML(FILL, HTML_name=None,data_path=_default_path,device = _de
             BOKEH_FIGS[f'Emitt_{plane} {beam.name}'] = make_emittance_figure(source,data_E,plane,beam,color)
     #=====================================
     
-
+    
 
 
 
@@ -306,7 +306,7 @@ def run_analysis(FILL,data_path=_default_path,device = _default_device):
     # device_data = data_path + f'/efficiency_data/{device}/'
 
     raw_data    = data_path + '/rawdata/'
-    device_data = data_path + f'../2023/efficiency_data/{device}/'
+    device_data = data_path + f'/efficiency_data/{device}/'
 
 
 
@@ -360,11 +360,12 @@ def run_analysis(FILL,data_path=_default_path,device = _default_device):
     LHC_vars   = LHC._getVarList(subset=[   'Xing',
                                             'Fill',
                                             'Bmode',
-                                            'betastar'])
+                                            'betastar',
+                                            'Luminosity'])
 
 
     beams_vars = sum([beam._getVarList(subset=[ 'Intensity',
-                                                'Nb']) for beam in beams],[])
+                                                'Nb']) for beam in beams],[]) + [beam.I_oct['S12'] for beam in beams]
     wires_vars = sum([wire._getVarList(subset=[ 'I']) for wire in wires['B2']],[])
     variables = sorted(LHC_vars+beams_vars+wires_vars)
 
@@ -447,11 +448,14 @@ def make_overview_figure(FILL,database):
     #--------------------
     ax,axis_name = new_axis(fig,axis_name='Luminosity')#,side='left')
     max_y = 0
-    for loc,color in zip(['ATLAS','CMS'],['orange','green']):
-        data = database.set_index('Timestamp')[LHC['bb_Luminosity'][loc]].dropna()
-        data = data.apply(lambda line: np.sum(line))
+    for loc,color in zip(['ATLAS','CMS','ALICE','LHCB'],['orange','green','darkorange','deeppink']):
+        # data = database.set_index('Timestamp')[LHC['bb_Luminosity'][loc]].dropna()
+        # data = data.apply(lambda line: np.sum(line))
+
+        data = database.set_index('Timestamp')[LHC['Luminosity'][loc]].dropna()
         
-        fig.line(data.index,data,color=color,alpha=0.8,legend_label=loc,name=f'Luminosity {loc} [Hz/ub]',y_range_name=axis_name)
+        _line = fig.line(data.index,data,color=color,alpha=0.8,legend_label=loc,name=f'Luminosity {loc} [Hz/ub]',y_range_name=axis_name)
+        # _line.visible = False
 
         max_y  = np.max((max_y,np.max(data)))
 
@@ -466,8 +470,8 @@ def make_overview_figure(FILL,database):
 
 
     data = database.set_index('Timestamp')[LHC.Xing['IP5']].dropna()
-    fig.line(data.index,data,color='indianred',alpha=0.8,legend_label="theta/2",name="theta/2 [urad]",y_range_name=axis_name)
-
+    _line = fig.line(data.index,data,color='indianred',alpha=0.8,legend_label="theta/2",name="theta/2 [urad]",y_range_name=axis_name)
+    # _line.visible = False
         
     fig.extra_y_ranges[axis_name] = bkmod.Range1d(110,180)
     # ax.axis_label = r"Half-crossing angle [urad]"
@@ -481,8 +485,8 @@ def make_overview_figure(FILL,database):
 
     data = database.set_index('Timestamp')[LHC.betastar['IP5']].dropna()
     data[(data>90)|(data<0)]=np.nan
-    fig.line(data.index,data,color='purple',alpha=0.8,legend_label="beta*",name="beta* [cm]",y_range_name=axis_name)
-
+    _line = fig.line(data.index,data,color='purple',alpha=0.8,legend_label="beta*",name="beta* [cm]",y_range_name=axis_name)
+    # _line.visible = False
         
     fig.extra_y_ranges[axis_name] = bkmod.Range1d(0,90)
     # ax.axis_label = r"Beta star [cm]"
@@ -504,6 +508,25 @@ def make_overview_figure(FILL,database):
     fig.extra_y_ranges[axis_name] = bkmod.Range1d(-0.05*max_y,1.05*max_y)
     # ax.axis_label = r"BBCW Current [A]"
     #--------------------
+
+    # Plotting Octupole Current
+    #--------------------
+    ax,axis_name = new_axis(fig,axis_name='I_oct F. S12')#,side='right')
+
+    for beam,color in zip(beams,['darkcyan','cyan']):
+        data = database.set_index('Timestamp')[beam.I_oct['S12']].dropna()
+
+        fig.line(data.index,data,color=color,alpha=0.8,legend_label=f"I oct, {beam.name} S12",name=f"I oct, {beam.name} S12 [A]",y_range_name=axis_name)
+
+    max_y  = np.max(data)
+    min_y  = np.min(data)
+    if min_y < 0:
+        fig.extra_y_ranges[axis_name] = bkmod.Range1d(1.05*min_y,1.05*max_y)
+    else:
+        fig.extra_y_ranges[axis_name] = bkmod.Range1d(0.05*min_y,1.05*max_y)
+    # ax.axis_label = r"BBCW Current [A]"
+    #--------------------
+
 
     # Legend Options
     #=====================================
@@ -540,11 +563,12 @@ def make_efficiency_source(database,bb_df_list=None,dt_I = 300,left=None,right=N
         _data_I           = database.set_index('Timestamp')[beam.bb_Intensity].dropna()
         data_I[beam.name] = _data_I.groupby(pd.Grouper(freq=f'{dt_I}s')).mean().apply(lambda line: line[bb_df.index]/1e11)
 
+        # Extracting the emittance but using index of _data_I (precise timing not needed)
         _data_           = database.set_index('Timestamp')[beam.bb_Emittance_H].dropna()
-        data_E_H[beam.name] = _data_.groupby(pd.Grouper(freq=f'{dt_I}s')).mean().apply(lambda line: line[bb_df.index])
+        data_E_H[beam.name] = _data_.groupby(pd.Grouper(freq=f'{dt_I}s')).mean().dropna().apply(lambda line: line[bb_df.index]).reindex(_data_I.index,method='ffill')
 
         _data_           = database.set_index('Timestamp')[beam.bb_Emittance_V].dropna()
-        data_E_V[beam.name] = _data_.groupby(pd.Grouper(freq=f'{dt_I}s')).mean().apply(lambda line: line[bb_df.index])
+        data_E_V[beam.name] = _data_.groupby(pd.Grouper(freq=f'{dt_I}s')).mean().dropna().apply(lambda line: line[bb_df.index]).reindex(_data_I.index,method='ffill')
 
 
         # Compiling data to source

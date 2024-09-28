@@ -43,8 +43,14 @@ _default_out    = '/eos/user/p/phbelang/www/Monitoring_BBCW/'
 
 
 #==================================================
-def fill_unix_times(fill,data_path=_default_path):
-    _df = dd.read_parquet(data_path + f'/HX:FILLN={fill}',columns=[LHC.Fill]).compute()
+def fill_unix_times(fill,beamMode = None,data_path=_default_path):
+    if beamMode is None:
+        _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}',columns=[LHC.Fill])
+    else:
+        _partition = dd.read_parquet(data_path + f'/HX:FILLN={fill}'+ f'/HX:BMODE={beamMode.upper()}',columns=[LHC.Fill])
+
+
+    _df = _partition.compute()
     _df = _df.sort_index()
     return _df.index[0],_df.index[-1]
 #==================================================
@@ -191,7 +197,7 @@ def from_parquet(fill=None,file = None,variables = None,beamMode = None,data_pat
 def from_parquet2bin(fill=None,file = None,variables = None,rename=None,dt = 60,bins=None,beamMode = None,data_path= _default_path,keeptype = True):
     
     if bins is None:
-        unix_s,unix_e = fill_unix_times(fill,data_path=data_path)
+        unix_s,unix_e = fill_unix_times(fill,beamMode=beamMode,data_path=data_path)
         unix_bins     = np.arange(unix_s,unix_e,dt/1e-9)
     else:
         unix_bins = bins
@@ -346,9 +352,9 @@ def fill_filling_pattern(fill=None,data_path= _default_path,n_LR = 21):
         probe2 = bb_I.iloc[len(bb_I)//4-1:len(bb_I)//4+1].mean(axis=0)
 
 
-        assert(np.all((probe1!=0) == (probe2!=0))), 'Error on the filling scheme'
+        assert(np.all((probe1>1e10) == (probe2>1e10))), 'Error on the filling scheme'
 
-        filled_b_slots[beam.name] = (probe1!=0).astype(int)
+        filled_b_slots[beam.name] = (probe1>1e10).astype(int)
     #=====================================================
 
     # Computing schedule
@@ -372,7 +378,40 @@ def fill_filling_pattern(fill=None,data_path= _default_path,n_LR = 21):
 
 
 
+#=====================================================
+def tag_filling_pattern(bb_df_b1,bb_df_b2):
+    for bb_df in [bb_df_b1,bb_df_b2]:
+        # Adding Train number:
+        #---------------------------------
+        bb_df.insert(0,'counter',1)
+        bb_df.insert(0,'Train',1)
+        idx_jump = np.diff(bb_df.index)
+        for train_s in bb_df.index[:-1][idx_jump>1]:
+            bb_df.loc[train_s+1:,'Train'] += 1
+        # --------------------------------
 
+
+        # Adding Train length:
+        #---------------------------------
+        train_lengths = bb_df.groupby('Train').count()['counter']
+        bb_df.insert(1,'Train Lengths',np.repeat(train_lengths.values,train_lengths.values))
+        #---------------------------------
+
+
+
+        # Add Tag for bunch in trains:
+        #---------------------------------
+        bb_df.insert(2,'Tag',None)
+        grouped = bb_df.groupby('Train')
+
+        for train in list(grouped.groups.keys()):
+            length = grouped.get_group(train)['Train Lengths'].max()   
+            for i in range(length):
+                _idx  = grouped.get_group(train).index[i]
+                bb_df.loc[_idx,'Tag']  = f'{i+1}/{length}'
+        #---------------------------------
+    return bb_df_b1,bb_df_b2
+#=====================================================
 
 #=====================================================
 # MEMORY USAGE

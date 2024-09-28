@@ -308,6 +308,21 @@ class NXCALSBeam():
         self.Intensity_B    = f'LHC.BCTDC.B6R4.{self.name}:BEAM_INTENSITY'
         self.bb_Intensity_B = f'LHC.BCTFR.B6R4.{self.name}:BUNCH_INTENSITY'
 
+        # Octupole current
+
+        self.I_oct = {'S12':f'RPMBD.RR17.ROF.A12{self.name}:I_MEAS',
+                      'S23':f'RPMBB.UJ33.ROF.A23{self.name}:I_MEAS',
+                      'S34':f'RPMBB.UJ33.ROF.A34{self.name}:I_MEAS',
+                      'S45':f'RPMBD.RR53.ROF.A45{self.name}:I_MEAS',
+                      'S56':f'RPMBD.RR57.ROF.A56{self.name}:I_MEAS',
+                      'S67':f'RPMBD.RR73.ROF.A67{self.name}:I_MEAS',
+                      'S78':f'RPMBD.RR77.ROF.A78{self.name}:I_MEAS',
+                      'S81':f'RPMBD.RR13.ROF.A81{self.name}:I_MEAS'}
+        
+        self.I_oct_D = self.I_oct.copy()
+        self.I_oct_D.update({key:val.replace('ROF','ROD') for key,val in self.I_oct_D.items()})
+
+
 
         # Emittance
         _loc_fmt = {'B1':'5R4.B1','B2':'5L4.B2'}[self.name]

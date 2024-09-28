@@ -19,6 +19,7 @@ header_file = '/home/phbelang/bblumi/docs/Monitoring/header_index.md'
 target_file = '/home/phbelang/bblumi/docs/Monitoring/index.md'
 
 _default_files = '/eos/user/p/phbelang/www/Monitoring_efficiency'
+_default_bbb_files = '/eos/user/p/phbelang/www/Monitoring_bbbsignature'
 _default_url   = 'https://phbelang.web.cern.ch/Monitoring_efficiency'
 _default_bbb_url   = 'https://phbelang.web.cern.ch/Monitoring_bbbsignature'
 
@@ -75,12 +76,12 @@ for index, row in df.iterrows():
     # link_str += f"BCTF"
 
     link_str = ''
-    if Path(_default_files +'/'+ row['DBLM']).exists():
+    if Path(_default_bbb_files +'/'+ row['DBLM']).exists():
         link_str += f"[**DBLM**]({_default_bbb_url}/{row['DBLM']}){{target=_blank}}"
     else:
         link_str += f"DBLM"
     link_str += ' | '
-    if Path(_default_files +'/'+ row['BCTF']).exists():
+    if Path(_default_bbb_files +'/'+ row['BCTF']).exists():
         link_str += f"[**BCTF**]({_default_bbb_url}/{row['BCTF']}){{target=_blank}}"
     else:
         link_str += f"BCTF"

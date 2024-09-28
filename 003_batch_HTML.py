@@ -32,7 +32,8 @@ b_slots   = np.arange(3564)
 
 # Setting default values
 #------------------------------------------------
-_default_path   = '/eos/project/l/lhc-lumimod/LuminosityFollowUp/2023/'
+# _default_path   = '/eos/project/l/lhc-lumimod/LuminosityFollowUp/2023/'
+_default_path   = '/eos/user/p/phbelang/Programming/dataBase/LuminosityFollowUp/handpicked'
 
 _default_efficiency_HTML   = '/eos/user/p/phbelang/www/Monitoring_efficiency/'
 _default_bbbsignature_HTML = '/eos/user/p/phbelang/www/Monitoring_bbbsignature/'
@@ -50,7 +51,9 @@ df = pd.concat(df_list).sort_index()
 
 
 # Running analysis for fills
-for fill in [8685]:#df.index:
+handpicked = [8348, 8462,  8469,  8470]
+for fill in handpicked:
+# for fill in df.index:
     for device in ['DBLM','BCTF']:
         try:
             # Creating Efficiency parquet

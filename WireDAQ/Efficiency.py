@@ -74,7 +74,7 @@ def compute_lumi_tot(df,experiments = ['ATLAS','CMS']):
 
 
 #----------------------------------
-def compute_dBLM_efficiency(df,beams):
+def compute_dBLM_efficiency(df,beams,crop_by=10):
 
 
     # Extracting data
@@ -82,7 +82,7 @@ def compute_dBLM_efficiency(df,beams):
     observable     = 'bb_LUMI_TOT'
     times_L,data_L = df[observable].dropna().to_2D() 
 
-    crop_by   = 10
+    
     data_dblm = {}
     for beam in beams:
         for dblmType in ['V','H-V-S']:

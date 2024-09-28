@@ -73,8 +73,11 @@ def make_eff_df(FILL,data_path=_default_path):
     # Computing Efficiency
     #------------------------------------------------- 
     _tmp   = pd.concat([dblm,df_lumi_tot],axis=1).sort_index()
-    df_eff = eff.compute_dBLM_efficiency(_tmp,beams)
-
+    try:
+        df_eff = eff.compute_dBLM_efficiency(_tmp,beams)
+    except:
+        # If length mismatch, try cropping more data
+        df_eff = eff.compute_dBLM_efficiency(_tmp,beams,crop_by=15)
 
     return df_eff
 

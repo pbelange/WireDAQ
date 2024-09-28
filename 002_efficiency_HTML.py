@@ -209,7 +209,7 @@ def run_analysis(FILL,data_path=_default_path,device = _default_device):
     # Fixing data path
     raw_data    = data_path + '/rawdata/'
     # device_data = data_path + f'/efficiency_data/{device}/'
-    device_data = data_path + f'../2023/efficiency_data/{device}/'
+    device_data = data_path + f'/efficiency_data/{device}/'
 
 
 
@@ -245,17 +245,19 @@ def run_analysis(FILL,data_path=_default_path,device = _default_device):
     df_lumi_tot = eff.compute_lumi_tot(df_lumi,experiments = ['ATLAS','CMS'])
     #-------------------------------------------------
 
-    # Cropping Efficiency
-    #------------------------------------------------- 
-    # droping near-zero values
-    n_colliding   = len(bb_df_b1['HO partner in ATLAS'].dropna())
-    avg_per_bunch = df_lumi_tot['bb_LUMI_TOT'].apply(lambda line:np.sum(line)/n_colliding)
-    noise_level   = 0.00115
+    try:
+        # Cropping Efficiency
+        #------------------------------------------------- 
+        # droping near-zero values
+        n_colliding   = len(bb_df_b1['HO partner in ATLAS'].dropna())
+        avg_per_bunch = df_lumi_tot['bb_LUMI_TOT'].apply(lambda line:np.sum(line)/n_colliding)
+        noise_level   = 0.00115
 
-    ROI_idx = avg_per_bunch[avg_per_bunch>5*noise_level].index[[0,-1]]
-    df_eff  = df_eff.loc[ROI_idx[0]:ROI_idx[1]]
-    #----------------------------------
-
+        ROI_idx = avg_per_bunch[avg_per_bunch>5*noise_level].index[[0,-1]]
+        df_eff  = df_eff.loc[ROI_idx[0]:ROI_idx[1]]
+        #----------------------------------
+    except:
+        pass
 
 
     # Adding extra data for analysis
@@ -263,11 +265,12 @@ def run_analysis(FILL,data_path=_default_path,device = _default_device):
     LHC_vars   = LHC._getVarList(subset=[   'Xing',
                                             'Fill',
                                             'Bmode',
-                                            'betastar'])
+                                            'betastar',
+                                            'Luminosity'])
 
 
     beams_vars = sum([beam._getVarList(subset=[ 'Intensity',
-                                                'Nb']) for beam in beams],[])
+                                                'Nb']) for beam in beams],[]) + [beam.I_oct['S12'] for beam in beams]
     wires_vars = sum([wire._getVarList(subset=[ 'I']) for wire in wires['B2']],[])
     variables = sorted(LHC_vars+beams_vars+wires_vars)
 
@@ -350,11 +353,14 @@ def make_overview_figure(FILL,database):
     #--------------------
     ax,axis_name = new_axis(fig,axis_name='Luminosity')#,side='left')
     max_y = 0
-    for loc,color in zip(['ATLAS','CMS'],['orange','green']):
-        data = database.set_index('Timestamp')[LHC['bb_Luminosity'][loc]].dropna()
-        data = data.apply(lambda line: np.sum(line))
+    for loc,color in zip(['ATLAS','CMS','ALICE','LHCB'],['orange','green','darkorange','deeppink']):
+        # data = database.set_index('Timestamp')[LHC['bb_Luminosity'][loc]].dropna()
+        # data = data.apply(lambda line: np.sum(line))
+
+        data = database.set_index('Timestamp')[LHC['Luminosity'][loc]].dropna()
         
-        fig.line(data.index,data,color=color,alpha=0.8,legend_label=loc,name=f'Luminosity {loc} [Hz/ub]',y_range_name=axis_name)
+        _line = fig.line(data.index,data,color=color,alpha=0.8,legend_label=loc,name=f'Luminosity {loc} [Hz/ub]',y_range_name=axis_name)
+        # _line.visible = False
 
         max_y  = np.max((max_y,np.max(data)))
 
@@ -408,6 +414,24 @@ def make_overview_figure(FILL,database):
     # ax.axis_label = r"BBCW Current [A]"
     #--------------------
 
+    # Plotting Octupole Current
+    #--------------------
+    ax,axis_name = new_axis(fig,axis_name='I_oct F. S12')#,side='right')
+
+    for beam,color in zip(beams,['darkcyan','cyan']):
+        data = database.set_index('Timestamp')[beam.I_oct['S12']].dropna()
+
+        fig.line(data.index,data,color=color,alpha=0.8,legend_label=f"I oct, {beam.name} S12",name=f"I oct, {beam.name} S12 [A]",y_range_name=axis_name)
+
+    max_y  = np.max(data)
+    min_y  = np.min(data)
+    if min_y < 0:
+        fig.extra_y_ranges[axis_name] = bkmod.Range1d(1.05*min_y,1.05*max_y)
+    else:
+        fig.extra_y_ranges[axis_name] = bkmod.Range1d(0.05*min_y,1.05*max_y)
+    # ax.axis_label = r"BBCW Current [A]"
+    #--------------------
+
     # Legend Options
     #=====================================
     fig.legend.location     = "top_left"
@@ -436,12 +460,12 @@ def make_efficiency_source(FILL,database,bb_df_list=None,slider_dt = 120,default
         _data_I           = database.set_index('Timestamp')[beam.bb_Intensity].dropna()
         data_I[beam.name] = _data_I.groupby(pd.Grouper(freq=f'{slider_dt}s')).mean().apply(lambda line: line[bb_df.index]/1e11)
 
-
+        # Extracting the emittance but using index of _data_I (precise timing not needed)
         _data_           = database.set_index('Timestamp')[beam.bb_Emittance_H].dropna()
-        data_E_H[beam.name] = _data_.groupby(pd.Grouper(freq=f'{slider_dt}s')).mean().apply(lambda line: line[bb_df.index])
+        data_E_H[beam.name] = _data_.groupby(pd.Grouper(freq=f'{slider_dt}s')).mean().dropna().apply(lambda line: line[bb_df.index]).reindex(_data_I.index,method='ffill')
 
         _data_           = database.set_index('Timestamp')[beam.bb_Emittance_V].dropna()
-        data_E_V[beam.name] = _data_.groupby(pd.Grouper(freq=f'{slider_dt}s')).mean().apply(lambda line: line[bb_df.index])
+        data_E_V[beam.name] = _data_.groupby(pd.Grouper(freq=f'{slider_dt}s')).mean().dropna().apply(lambda line: line[bb_df.index]).reindex(_data_I.index,method='ffill')
 
 
         # Compiling data to source

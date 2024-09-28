@@ -28,6 +28,7 @@ pip install ipywidgets
 pip install PyYAML
 pip install pyarrow
 pip install pandas
+pip install seaborn
 pip install matplotlib
 pip install scipy
 pip install ipympl
